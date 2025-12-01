@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diamant - Log Minimal</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 10px;
+            background-color: #f0f0f0;
+            color: #333;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        button,
+        select {
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #333;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        #primary-action-button {
+            background-color: #4CAF50;
+            /* Verde */
+            color: white;
+        }
+
+        #exit-button {
+            background-color: #f44336;
+            /* Rosso */
+            color: white;
+        }
+
+        #reread-button {
+            background-color: #ccc;
+            /* Grigio */
+            color: #333;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #extraction-log {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 15px;
+            min-height: 200px;
+            max-height: 60vh;
+            overflow-y: auto;
+            background-color: white;
+            border-radius: 5px;
+        }
+
+        /* Stile per i singoli messaggi, ora simili a caselle */
+        .log-entry {
+            border: 1px solid #eee;
+            /* Bordo leggero per separazione */
+            border-left: 4px solid #aaa;
+            padding: 8px;
+            /* Più padding per effetto box */
+            margin-bottom: 8px;
+            /* Più margine */
+            font-size: 14px;
+            background-color: #fafafa;
+            /* Sfondo leggero */
+            border-radius: 4px;
+        }
+
+        /* Stili specifici per log colorati */
+        .log-info {
+            border-color: #2196F3;
+        }
+
+        /* Blu */
+        .log-treasure {
+            border-color: #4CAF50;
+        }
+
+        /* Verde */
+        .log-hazard {
+            border-color: #f44336;
+        }
+
+        /* Rosso */
+        .log-artifact {
+            border-color: #FFC107;
+        }
+
+        /* Giallo/Arancione */
+        .log-reread {
+            border-color: #9C27B0;
+        }
+
+        /* Viola */
+        .log-end {
+            border-color: #000;
+        }
+
+        /* Struttura log */
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Diamant: Log Estrazione Minimal</h1>
+
+        <!-- Selettore Giocatori (Select Dropdown) -->
+        <div id="player-input-group" style="margin-bottom: 15px;">
+            <label for="player-count" style="display: block; margin-bottom: 5px;">Numero di Giocatori (3-8):</label>
+            <select id="player-count">
+                <option value="3">3 Giocatori</option>
+                <option value="4" selected>4 Giocatori</option>
+                <option value="5">5 Giocatori</option>
+                <option value="6">6 Giocatori</option>
+                <option value="7">7 Giocatori</option>
+                <option value="8">8 Giocatori</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <!-- Pulsante Azione Principale (Start/Draw) -->
+            <button id="primary-action-button">Inizia Nuova Spedizione (1)</button>
+
+            <!-- Pulsante Rientro -->
+            <button id="exit-button" disabled>Torna al campo</button>
+
+            <!-- Pulsante Rileggi LOG -->
+            <button id="reread-button">Rileggi LOG</button>
+        </div>
+
+        <!-- Registro Dettagliato Estrazioni -->
+        <h2>Registro Dettagliato Estrazioni</h2>
+        <div id="extraction-log">
+            <!-- La struttura del log sarà creata da JavaScript -->
+            <p style="color: #999;">Il log delle estrazioni apparirà qui dopo l'inizio della spedizione.</p>
+        </div>
+    </div>
+
+    <script>
+        // Variabili globali per lo stato del gioco
+        let deck = [];
+        let tunnel = [];
+        let currentHazardCounts = {};
+        let roundActive = false;
+        let expeditionNumber = 0;
+        const MAX_EXPEDITIONS = 5;
+
+        let numPlayers = 0;
+        let currentTreasureOnBoard = 0; // Usato solo internamente per il log
+
+        // Mappa degli artefatti con i loro valori e stato
+        const ARTIFACT_VALUES = [5, 7, 8, 10, 12];
+        let foundArtifacts = [];
+
+        // Elementi DOM
+        const primaryActionButton = document.getElementById('primary-action-button');
+        const exitButton = document.getElementById('exit-button');
+        const rereadButton = document.getElementById('reread-button');
+        const extractionLog = document.getElementById('extraction-log');
+        // const ariaAnnouncer è stato rimosso
+        const playerCountSelect = document.getElementById('player-count');
+        const playerInputGroup = document.getElementById('player-input-group');
+
+        /**
+         * Mescola un array usando l'algoritmo Fisher-Yates.
+         */
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        /**
+         * Crea e mescola il mazzo completo per una nuova spedizione.
+         */
+        function createAndShuffleDeck() {
+            let newDeck = [];
+
+            // 1. Aggiungi Carte Tesoro
+            const BASE_DECK_CONFIG = {
+                // AGGIORNATO: Ora usa la lista esatta fornita dall'utente (15 carte)
+                treasures: [1, 2, 3, 4, 5, 5, 7, 7, 9, 11, 11, 13, 14, 15, 17],
+                hazards: { // 5 tipi, 3 di ciascuno = 15 carte
+                    'Masso': 3,
+                    'Serpente': 3,
+                    'Ragno': 3,
+                    'Fuoco': 3,
+                    'Vapore': 3
+                },
+            };
+
+            BASE_DECK_CONFIG.treasures.forEach(value => {
+                newDeck.push({ type: 'treasure', value: value, display: `${value} Gemme` });
+            });
+
+            // 2. Aggiungi Carte Pericolo
+            for (const [hazardName, count] of Object.entries(BASE_DECK_CONFIG.hazards)) {
+                for (let i = 0; i < count; i++) {
+                    newDeck.push({ type: 'hazard', value: hazardName, display: `Pericolo ${hazardName}` });
+                }
+            }
+
+            // 3. Aggiungi Carte Artefatto
+            const artifactsToInclude = ARTIFACT_VALUES
+                .slice(0, expeditionNumber)
+                .filter(value => !foundArtifacts.includes(value));
+
+            artifactsToInclude.forEach(value => {
+                newDeck.push({
+                    type: 'artifact',
+                    value: `Artefatto ${value}`,
+                    gemValue: value,
+                    display: `Artefatto ${value}`
+                });
+            });
+
+            shuffle(newDeck);
+            return newDeck;
+        }
+
+        /**
+         * Funzione di utility per registrare i messaggi nel Log Dettagliato.
+         * Il log mantiene SOLO l'ultimo messaggio e forza il focus su di esso.
+         */
+        function logMessage(text, colorKey) {
+            // 1. Pulisce l'intero log, lasciando solo un contenitore vuoto
+            extractionLog.innerHTML = '<div id="log-entries-container" style="padding-top: 5px;"></div>';
+            const logContainer = document.getElementById('log-entries-container');
+
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${colorKey}`;
+            logEntry.innerHTML = text;
+
+            // 2. Rende l'elemento focusabile e gli imposta il focus
+            logEntry.tabIndex = -1;
+
+            logContainer.appendChild(logEntry);
+            extractionLog.scrollTop = extractionLog.scrollHeight;
+
+            // 3. Sposta il focus sulla singola voce. Il lettore di schermo la leggerà.
+            logEntry.focus();
+        }
+
+        /**
+         * Funzione che gestisce l'azione principale (Start o Draw).
+         */
+        function handlePrimaryAction() {
+            if (roundActive) {
+                drawCard();
+            } else {
+                startNewExpedition();
+            }
+        }
+
+        /**
+         * Funzione principale per iniziare una nuova spedizione (round).
+         */
+        function startNewExpedition() {
+            // 1. Controllo validità giocatori e nascondi input
+            if (expeditionNumber === 0) { // Solo al primo avvio
+                const playerCount = parseInt(playerCountSelect.value);
+                if (playerCount < 3 || playerCount > 8 || isNaN(playerCount)) {
+                    logMessage('Errore: Seleziona un numero di giocatori valido (3-8).', 'hazard');
+                    return;
+                }
+                numPlayers = playerCount;
+                playerInputGroup.style.display = 'none'; // Nascondi input
+            }
+
+            if (expeditionNumber >= MAX_EXPEDITIONS) {
+                logMessage('Spedizione completa! Hai giocato 5 tunnel. Gioco terminato.', 'end');
+                primaryActionButton.disabled = true;
+                return;
+            }
+
+            // 2. Logica per l'avvio di un NUOVO round
+            expeditionNumber++;
+            deck = createAndShuffleDeck();
+            tunnel = [];
+            currentHazardCounts = {};
+            roundActive = true;
+            currentTreasureOnBoard = 0;
+
+            const artifactsAvailable = ARTIFACT_VALUES.slice(0, expeditionNumber).length - foundArtifacts.length;
+            let message = `Spedizione numero ${expeditionNumber} iniziata con ${numPlayers} giocatori. Carte nel mazzo: ${deck.length}. Artefatti nel mazzo: ${artifactsAvailable}.`;
+
+            if (expeditionNumber > 1) {
+                message = `--- NUOVA SPEDIZIONE ${expeditionNumber} ---<br>` + message;
+            }
+
+            logMessage(message, 'info'); // Log e focus sul messaggio
+
+            // 3. Aggiorna l'UI (senza riportare il focus al pulsante)
+            updateUI();
+        }
+
+        /**
+         * Funzione per estrarre la prossima carta dal mazzo.
+         */
+        function drawCard() {
+            if (!roundActive || deck.length === 0) return;
+
+            const card = deck.pop();
+            tunnel.push(card);
+
+            let roundEnd = false;
+            const cardIndex = tunnel.length;
+            let logText = '';
+            let logColor = '';
+
+            // 1. Gestione della carta estratta
+            if (card.type === 'hazard') {
+                const hazardName = card.value;
+                currentHazardCounts[hazardName] = (currentHazardCounts[hazardName] || 0) + 1;
+
+                if (currentHazardCounts[hazardName] === 2) {
+                    roundEnd = true;
+                    // NUOVO FORMATO: Stanza X: Pericolo [NOME PERICOLO], uscito X volte
+                    logText = `Stanza ${cardIndex}: DOPPIO PERICOLO ${hazardName.toUpperCase()}. Spedizione terminata. Tesoro PERDUTO.`;
+                    logColor = 'hazard';
+
+                } else {
+                    // NUOVO FORMATO: Stanza X: Pericolo [NOME PERICOLO], uscito X volte
+                    logText = `Stanza ${cardIndex}: Pericolo ${hazardName}, uscito ${currentHazardCounts[hazardName]} volte.`;
+                    logColor = 'hazard';
+                }
+
+            } else if (card.type === 'treasure') {
+                const newGems = card.value;
+                const totalGemsForSplit = newGems;
+
+                const gemsPerPlayer = Math.floor(totalGemsForSplit / numPlayers);
+                const gemsRemaining = totalGemsForSplit % numPlayers;
+
+                card.remainingGems = gemsRemaining;
+
+                // NUOVO FORMATO: Stanza X: Tesoro (X Gemme), restano X gemme nella Stanza
+                logText = `
+                    Stanza ${cardIndex}: Tesoro (${newGems} Gemme)
+                    Assegnate: ${gemsPerPlayer} Gemme a giocatore. 
+                    Restano sulla carta: <span style="font-weight: bold; color: #FFC107;">${gemsRemaining} Gemme</span>
+                `;
+                logColor = 'treasure';
+
+            } else if (card.type === 'artifact') {
+                foundArtifacts.push(card.gemValue);
+                card.remainingGems = 0;
+
+                // NUOVO FORMATO: Stanza X: Artefatto Valore X
+                logText = `Stanza ${cardIndex}: Artefatto Valore ${card.gemValue}. Artefatti collezionati: ${foundArtifacts.join(', ')}.`;
+                logColor = 'artifact';
+            }
+
+            logMessage(logText, logColor); // Log e focus sul messaggio
+
+            if (deck.length === 0 && !roundEnd) {
+                roundEnd = true;
+                const { totalRemainingGems } = calculateTotalRemainingGems();
+                logMessage(`Tunnel Esplorato! Tutte le carte estratte. Le gemme residue (${totalRemainingGems} Gemme in totale) sono perse.`, 'end');
+            }
+
+            if (roundEnd) {
+                endExpedition(false);
+            }
+
+            // Aggiorna l'UI (senza riportare il focus al pulsante)
+            updateUI();
+        }
+
+        /**
+         * Funzione separata per il rientro (Torna al campo).
+         */
+        function exitExpedition() {
+            if (!roundActive) return;
+
+            logMessage('Rientro! Hai deciso di tornare al campo base. Le gemme rimaste sulle carte NON sono state prese.', 'end');
+            endExpedition(true);
+
+            // Aggiorna l'UI (senza riportare il focus al pulsante)
+            updateUI();
+        }
+
+        /**
+         * Termina la spedizione corrente.
+         */
+        function endExpedition(voluntary) {
+            roundActive = false;
+
+            if (expeditionNumber === MAX_EXPEDITIONS) {
+                logMessage(`FINE GIOCO. Tutte le spedizioni completate. Artefatti totali: ${foundArtifacts.length}.`, 'end');
+                primaryActionButton.disabled = true;
+                primaryActionButton.textContent = 'Gioco Terminato';
+            }
+
+            updateUI();
+        }
+
+        /**
+         * Calcola il totale delle gemme residue non divise.
+         */
+        function calculateTotalRemainingGems() {
+            let total = 0;
+            let detailed = [];
+
+            tunnel.forEach((card, index) => {
+                if (card.type === 'treasure' && card.remainingGems !== undefined && card.remainingGems > 0) {
+                    total += card.remainingGems;
+                    detailed.push(`Stanza ${index + 1} (${card.value}G): ${card.remainingGems}`);
+                }
+            });
+
+            return { totalRemainingGems: total, detailedGems: detailed.join('; ') };
+        }
+
+        /**
+         * Genera un riassunto dello stato attuale e lo annuncia.
+         */
+        function rereadStatus() {
+            let detailedLogOutput = '';
+
+            if (!roundActive) {
+                detailedLogOutput = `<div style="font-weight: bold;">NESSUNA SPEDIZIONE ATTIVA.</div>`;
+
+            } else {
+                // --- Dettagli Log Pulito ---
+                const cardsDrawn = tunnel.length;
+
+                detailedLogOutput += `<span style="font-weight: bold; color: #FFC107;">RIEPILOGO SPEDIZIONE ${expeditionNumber} (${cardsDrawn} STANZE SCOPERTE)</span><hr style="margin: 5px 0; border: 0; border-top: 1px solid #ccc;">`;
+
+                const { totalRemainingGems } = calculateTotalRemainingGems();
+
+                // Dettaglio di ogni carta estratta
+                tunnel.forEach((card, index) => {
+                    let cardLine = `Stanza ${index + 1}: `;
+
+                    if (card.type === 'treasure') {
+                        const remaining = card.remainingGems !== undefined ? card.remainingGems : 0;
+                        // NUOVO FORMATO
+                        cardLine += `<span style="color: #4CAF50; font-weight: bold;">Tesoro (${card.value} Gemme).</span> Resto sulla carta: ${remaining} Gemme.`;
+                    } else if (card.type === 'hazard') {
+                        // NUOVO FORMATO
+                        cardLine += `<span style="color: #f44336; font-weight: bold;">Pericolo: ${card.value}</span>, uscito ${currentHazardCounts[card.value]} volte.`;
+                    } else if (card.type === 'artifact') {
+                        // NUOVO FORMATO
+                        cardLine += `<span style="color: #FFC107; font-weight: bold;">Artefatto Valore ${card.gemValue}.</span>`;
+                    }
+
+                    detailedLogOutput += `<div style="margin-top: 5px;">${cardLine}</div>`;
+                });
+
+                // Riassunto finale per il log
+                const hazardsSeen = Object.keys(currentHazardCounts).filter(h => currentHazardCounts[h] > 0);
+                const hazardsText = hazardsSeen.length > 0
+                    ? `Pericoli visti: ${hazardsSeen.map(h => `${h} (${currentHazardCounts[h]}x)`).join(', ')}.`
+                    : 'Nessun pericolo visto.';
+
+                detailedLogOutput += `<div style="margin-top: 10px; padding-top: 5px; border-top: 1px solid #ccc; font-size: 0.8em;">`;
+                detailedLogOutput += `Sintesi: ${hazardsText} Totale gemme residue non divise sul tavolo: ${totalRemainingGems} Gemme.`;
+                detailedLogOutput += `</div>`;
+            }
+
+            // Stampa il LOG dettagliato
+            logMessage(`--- Rileggi LOG Dettagliato ---<br>${detailedLogOutput}`, 'reread');
+
+            // Aggiorna l'UI (senza riportare il focus al pulsante)
+            updateUI();
+        }
+
+        /**
+         * Aggiorna lo stato visivo dei contatori e dei pulsanti.
+         */
+        function updateUI() {
+            // Aggiorna solo lo stato dei pulsanti 
+            exitButton.disabled = !roundActive;
+
+            if (expeditionNumber === MAX_EXPEDITIONS && !roundActive) {
+                primaryActionButton.textContent = 'Gioco Terminato';
+                primaryActionButton.disabled = true;
+            } else if (roundActive) {
+                primaryActionButton.textContent = `Estrai Carta (Mazzo: ${deck.length})`;
+                primaryActionButton.disabled = deck.length === 0;
+            } else {
+                primaryActionButton.textContent = `Inizia Nuova Spedizione (${expeditionNumber + 1})`;
+                primaryActionButton.disabled = false;
+            }
+        }
+
+        // --- Gestione Eventi ---
+
+        primaryActionButton.addEventListener('click', handlePrimaryAction);
+        exitButton.addEventListener('click', exitExpedition);
+        rereadButton.addEventListener('click', rereadStatus);
+
+        // Inizializzazione iniziale
+        function init() {
+            updateUI();
+
+            const initialMessage = 'Benvenuto! Seleziona il numero di giocatori e premi "Inizia Nuova Spedizione" per iniziare.';
+            logMessage(initialMessage, 'info');
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>
