@@ -96,7 +96,8 @@
     const treasureValues = [1, 2, 3, 4, 5, 5, 7, 7, 9, 11, 11, 13, 14, 15, 17];
     const artifactValues = [5, 7, 8, 10, 12];
     let trapDeck = { 'Scorpioni': 3, 'Serpenti': 3, 'Fossa di Lava': 3, 'Massi Rotolanti': 3, 'Trappole Acuminate': 3 };
-    let availableArtifactsInDeck = []; // Carte artefatto disponibili nel mazzo corrente
+    let availableArtifactsInDeck = []; 
+    let removedTraps = []; // Per tenere traccia di cosa è uscito dal gioco
 
     function focusMessage() {
         document.getElementById('message').focus();
@@ -120,7 +121,6 @@
         currentPath = [];
         players.forEach(p => { p.pocket = 0; p.inCave = true; });
         
-        // Aggiungi l'artefatto del round al mazzo pescabile
         availableArtifactsInDeck.push(artifactValues[round-1]);
 
         document.getElementById('path-content').innerHTML = '';
@@ -168,14 +168,12 @@
         let leavingPlayers = players.filter(p => p.inCave && roundDecisions.find(d => d.playerId === p.id).action === 'leave');
         
         if (leavingPlayers.length > 0) {
-            // Dividi i diamanti rimasti sulle carte tesoro
             currentPath.forEach(card => {
                 if (card.type === 'treasure' && card.remainder > 0) {
                     let share = Math.floor(card.remainder / leavingPlayers.length);
                     leavingPlayers.forEach(p => p.pocket += share);
                     card.remainder %= leavingPlayers.length;
                 }
-                // LOGICA ARTEFATTO: Riscattato solo se esce UN SOLO giocatore
                 if (card.type === 'artifact' && card.remainder > 0 && leavingPlayers.length === 1) {
                     leavingPlayers[0].pocket += card.remainder;
                     card.remainder = 0;
@@ -200,11 +198,12 @@
             stayingPlayers.forEach(p => p.pocket += share);
             document.getElementById('message').innerText = "Tesoro valore " + card.value + ". Ognuno riceve " + share + ". Restano sulla carta " + rest + " diamanti.";
         } else if (card.type === 'artifact') {
-            card.remainder = card.value; // Tutto il valore rimane sulla carta
-            document.getElementById('message').innerText = "ARTEFATTO pescato! Valore: " + card.value + ". Sarà raccolto solo da chi uscirà da solo dalla grotta.";
+            card.remainder = card.value;
+            document.getElementById('message').innerText = "ARTEFATTO pescato! Valore: " + card.value + ". Solo chi esce da solo lo raccoglie.";
         } else {
             if (activeTrapsInRound.includes(card.name)) {
                 trapDeck[card.name] -= 1;
+                removedTraps.push(card.name);
                 stayingPlayers.forEach(p => p.pocket = 0);
                 endRound("Secondo pericolo: " + card.name + "! Round finito. Una copia di " + card.name + " viene rimossa dal gioco.");
                 return;
@@ -220,18 +219,36 @@
     }
 
     function announcePathStatus() {
+        let statusText = "";
         if (currentPath.length === 0) {
-            document.getElementById('message').innerText = "Percorso vuoto.";
+            statusText = "Percorso vuoto.\n";
         } else {
-            let statusText = "Riepilogo percorso:\n";
+            statusText = "Riepilogo percorso attuale:\n";
             currentPath.forEach((card, index) => {
                 statusText += (index + 1) + ". ";
                 if (card.type === 'treasure') statusText += `Tesoro ${card.value} (Resto: ${card.remainder})\n`;
                 else if (card.type === 'artifact') statusText += `ARTEFATTO ${card.value} (${card.remainder > 0 ? 'Ancora presente' : 'Già raccolto'})\n`;
                 else statusText += `Pericolo ${card.name}\n`;
             });
-            document.getElementById('message').innerText = statusText;
         }
+
+        // INFO AGGIUNTIVE SUL MAZZO
+        statusText += "\nStato del mazzo globale:\n";
+        
+        // Trappole rimosse
+        if (removedTraps.length > 0) {
+            statusText += "Trappole rimosse: " + removedTraps.join(", ") + ".\n";
+        } else {
+            statusText += "Nessuna trappola ancora rimossa.\n";
+        }
+
+        // Artefatti futuri
+        let futureArtifacts = artifactValues.slice(round);
+        if (futureArtifacts.length > 0) {
+            statusText += "Artefatti ancora nel mazzo (round futuri): " + futureArtifacts.join(", ") + ".\n";
+        }
+
+        document.getElementById('message').innerText = statusText;
         focusMessage();
     }
 
@@ -252,17 +269,14 @@
         let rand = Math.random() * totalCards;
 
         if (rand < totalTraps) {
-            // Pesca trappola
             let availableTraps = [];
             for (let t in trapDeck) { for(let i=0; i<trapDeck[t]; i++) availableTraps.push(t); }
             let name = availableTraps[Math.floor(Math.random() * availableTraps.length)];
             return { type: 'trap', name: name };
         } else if (rand < (totalTraps + totalArtifacts)) {
-            // Pesca artefatto
-            let val = availableArtifactsInDeck.shift(); // Rimuove dal mazzo globale perché pescato
+            let val = availableArtifactsInDeck.shift(); 
             return { type: 'artifact', value: val, remainder: val };
         } else {
-            // Pesca tesoro
             const val = treasureValues[Math.floor(Math.random() * treasureValues.length)];
             return { type: 'treasure', value: val, remainder: 0 };
         }
@@ -295,7 +309,7 @@
         round++;
         if (round > 5) {
             players.sort((a,b) => b.chest - a.chest);
-            document.getElementById('message').innerText += "\nFine gara. Vince Giocatore " + players[0].id + " con " + players[0].chest + " diamanti.";
+            document.getElementById('message').innerText += "\nFine gara. Vincitore Giocatore " + players[0].id + " con " + players[0].chest + " diamanti.";
             document.getElementById('restart-container').classList.remove('hidden');
         } else {
             document.getElementById('next-round-container').classList.remove('hidden');
