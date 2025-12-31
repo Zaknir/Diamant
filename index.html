@@ -3,56 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diamant Accessibile - Stato Percorso</title>
+    <title>Diamant</title>
     <style>
         :root { --bg: #ffffff; --text: #000000; --border: #333333; --highlight: #eeeeee; }
         body { font-family: sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; padding: 20px; }
         #game-container { max-width: 800px; margin: auto; }
-        .setup-box, .stats-grid, .player-list, #path { border: 2px solid var(--border); padding: 15px; margin-bottom: 20px; }
+        .main-controls { border: 3px solid var(--border); padding: 20px; margin-bottom: 20px; background: #f9f9f9; }
+        .setup-box, .info-section, .player-list, #path { border: 2px solid var(--border); padding: 15px; margin-bottom: 20px; }
         .player-row { border-bottom: 1px solid var(--border); padding: 10px 0; }
         .active-turn { background: var(--highlight); font-weight: bold; border: 2px solid var(--text); padding: 5px; }
         .out { color: #666666; font-style: italic; }
-        .card { border: 1px solid var(--text); padding: 10px; margin: 5px; display: inline-block; }
-        button { padding: 15px 25px; font-size: 1.2rem; cursor: pointer; margin: 10px 5px; border: 2px solid var(--text); background: var(--bg); color: var(--text); font-weight: bold; }
+        button { padding: 18px 28px; font-size: 1.3rem; cursor: pointer; margin: 10px 5px; border: 2px solid var(--text); background: var(--bg); color: var(--text); font-weight: bold; }
         button:hover { background: var(--text); color: var(--bg); }
         .hidden { display: none; }
-        #message { font-size: 1.3rem; font-weight: bold; margin: 20px 0; min-height: 3em; border-left: 8px solid var(--border); padding-left: 15px; white-space: pre-line; }
+        #message { font-size: 1.4rem; font-weight: bold; margin-bottom: 20px; white-space: pre-line; }
     </style>
 </head>
 <body>
 
 <div id="game-container" role="main">
-    <h1>Diamant - Esplorazione Accessibile</h1>
+    <h1>Diamant</h1>
 
-    <div id="setup" class="setup-box">
-        <h2>Configurazione Partita</h2>
-        <label for="player-select">Scegli il numero di giocatori:</label>
-        <select id="player-select">
-            <option value="3">3 Giocatori</option>
-            <option value="4">4 Giocatori</option>
-            <option value="5">5 Giocatori</option>
-            <option value="6">6 Giocatori</option>
-            <option value="7">7 Giocatori</option>
-            <option value="8">8 Giocatori</option>
-        </select>
-        <br><br>
-        <button onclick="startGame()">Inizia la Partita</button>
-    </div>
-
-    <div id="board" class="hidden">
-        <div class="stats-grid" role="region" aria-label="Informazioni Round">
-            <p>Round attuale: <span id="round-num">1</span> di 5</p>
-            <p>Esploratori in grotta: <span id="active-count">0</span></p>
+    <div id="interaction-zone" class="main-controls hidden">
+        <div id="message" role="alert" aria-live="assertive">
+            Benvenuti. Iniziate il round.
         </div>
-
-        <div id="player-list" class="player-list" role="region" aria-label="Stato Giocatori"></div>
-        
-        <div id="path" role="region" aria-label="Percorso">
-            <h2>Percorso Esplorato:</h2>
-            <div id="path-content"></div>
-        </div>
-
-        <div id="message" role="alert" aria-live="assertive"></div>
 
         <div id="controls">
             <div id="action-buttons" class="hidden">
@@ -74,6 +49,37 @@
             </div>
         </div>
     </div>
+
+    <div id="setup" class="setup-box">
+        <h2>Configurazione Partita</h2>
+        <label for="player-select">Scegli il numero di giocatori:</label>
+        <select id="player-select" style="font-size: 1.2rem; padding: 5px;">
+            <option value="3">3 Giocatori</option>
+            <option value="4">4 Giocatori</option>
+            <option value="5">5 Giocatori</option>
+            <option value="6">6 Giocatori</option>
+            <option value="7">7 Giocatori</option>
+            <option value="8">8 Giocatori</option>
+        </select>
+        <br><br>
+        <button onclick="startGame()">Inizia la Partita</button>
+    </div>
+
+    <div id="board" class="hidden">
+        <div class="info-section" role="region" aria-label="Statistiche Round">
+            <p id="round-status-text">Round attuale: 1 di 5. Esploratori in grotta: 0.</p>
+        </div>
+
+        <div id="player-list" class="player-list" role="region" aria-label="Stato dei Giocatori">
+            <h2>Situazione Giocatori:</h2>
+            <div id="player-list-content"></div>
+        </div>
+        
+        <div id="path" role="region" aria-label="Percorso">
+            <h2>Percorso Esplorato:</h2>
+            <div id="path-content"></div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -91,6 +97,7 @@
             players.push({ id: i, chest: 0, pocket: 0, inCave: true });
         }
         document.getElementById('setup').classList.add('hidden');
+        document.getElementById('interaction-zone').classList.remove('hidden');
         document.getElementById('board').classList.remove('hidden');
         startRound();
     }
@@ -101,9 +108,14 @@
         currentPath = [];
         players.forEach(p => { p.pocket = 0; p.inCave = true; });
         document.getElementById('path-content').innerHTML = '';
-        document.getElementById('round-num').innerText = round;
         document.getElementById('next-round-container').classList.add('hidden');
+        updateInfoText();
         prepareTurnChoices();
+    }
+
+    function updateInfoText() {
+        const activeCount = players.filter(p => p.inCave).length;
+        document.getElementById('round-status-text').innerText = `Round attuale: ${round} di 5. Esploratori in grotta: ${activeCount}.`;
     }
 
     function prepareTurnChoices() {
@@ -148,7 +160,7 @@
         }
 
         if (players.every(p => !p.inCave)) {
-            endRound("Fine del round: tutti i giocatori sono fuori.");
+            endRound("Tutti i giocatori sono usciti. Il round " + round + " è terminato.");
             return;
         }
 
@@ -161,11 +173,11 @@
             let rest = card.value % stayingPlayers.length;
             card.remainder = rest;
             stayingPlayers.forEach(p => p.pocket += share);
-            document.getElementById('message').innerText = "Carta Tesoro: valore " + card.value + ". Ognuno riceve " + share + ". Restano sulla carta " + rest + " diamanti.";
+            document.getElementById('message').innerText = "Tesoro valore " + card.value + ". Ogni giocatore riceve " + share + ". Restano sulla carta " + rest + " diamanti.";
         } else {
             if (activeTraps.includes(card.name)) {
                 stayingPlayers.forEach(p => p.pocket = 0);
-                endRound("Secondo pericolo: " + card.name + "! Round finito, chi era in grotta perde i diamanti raccolti.");
+                endRound("Secondo pericolo: " + card.name + "! Round finito, diamanti del round persi.");
                 return;
             } else {
                 activeTraps.push(card.name);
@@ -180,16 +192,16 @@
 
     function announcePathStatus() {
         if (currentPath.length === 0) {
-            document.getElementById('message').innerText = "Il percorso è ancora vuoto.";
+            document.getElementById('message').innerText = "Percorso vuoto.";
             return;
         }
         let statusText = "Riepilogo percorso:\n";
         currentPath.forEach((card, index) => {
             statusText += (index + 1) + ". ";
             if (card.type === 'treasure') {
-                statusText += "Tesoro: valore iniziale " + card.value + ", restano sopra " + card.remainder + " diamanti.\n";
+                statusText += "Tesoro valore " + card.value + ", restano sopra " + card.remainder + ".\n";
             } else {
-                statusText += "Pericolo: " + card.name + ".\n";
+                statusText += "Pericolo " + card.name + ".\n";
             }
         });
         document.getElementById('message').innerText = statusText;
@@ -206,21 +218,20 @@
     }
 
     function updateUI(highlightId = null) {
-        const list = document.getElementById('player-list');
-        list.innerHTML = "<h2>Situazione Giocatori:</h2>" + players.map(p => `
+        updateInfoText();
+        const listContent = document.getElementById('player-list-content');
+        listContent.innerHTML = players.map(p => `
             <div class="player-row ${p.id === highlightId ? 'active-turn' : ''} ${!p.inCave ? 'out' : ''}">
-                Giocatore ${p.id} - ${p.inCave ? 'In grotta' : 'Uscito'} - Tasca: ${p.pocket}, Baule: ${p.chest}.
+                Giocatore ${p.id}. Stato: ${p.inCave ? 'In grotta' : 'Uscito'}. Tasca: ${p.pocket} diamanti. Baule: ${p.chest} diamanti.
             </div>
         `).join('');
 
         const pathDiv = document.getElementById('path-content');
         pathDiv.innerHTML = currentPath.map(card => `
-            <div class="card">
+            <div style="border: 1px solid black; padding: 5px; margin: 2px; display: inline-block;">
                 ${card.type === 'treasure' ? 'Tesoro ' + card.value : 'Pericolo ' + card.name}
-                ${card.remainder > 0 ? ' (Resto: ' + card.remainder + ')' : ''}
             </div>
         `).join('');
-        document.getElementById('active-count').innerText = players.filter(p => p.inCave).length;
     }
 
     function endRound(msg) {
@@ -235,6 +246,7 @@
             document.getElementById('restart-container').classList.remove('hidden');
         } else {
             document.getElementById('next-round-container').classList.remove('hidden');
+            document.getElementById('btn-next-round').focus();
         }
     }
 </script>
