@@ -198,7 +198,7 @@
             let rest = card.value % stayingPlayers.length;
             card.remainder = rest;
             stayingPlayers.forEach(p => p.pocket += share);
-            document.getElementById('message').innerText = "Tesoro valore " + card.value + ". Ogni giocatore riceve " + share + ". Restano sulla carta " + rest + " diamanti.";
+            document.getElementById('message').innerText = "Tesoro valore " + card.value + ". Ogni giocatore riceve " + share + ". Restano sulla carta " + rest + " rubini.";
         } else if (card.type === 'artifact') {
             card.remainder = card.value;
             // Rimuoviamo l'artefatto dal mazzo appena pescato
@@ -258,7 +258,7 @@
     function announcePlayersStatus() {
         let statusText = "Situazione Tesori Giocatori:\n";
         players.forEach(p => {
-            statusText += `Giocatore ${p.id}: ${p.chest} nel baule, ${p.pocket} nella tasca. ${p.inCave ? 'In grotta.' : 'Uscito.'}\n`;
+            statusText += `Giocatore ${p.id} ha ${p.chest} rubini nel baule e ${p.pocket} rubini nella tasca. ${p.inCave ? 'In grotta.' : 'Uscito.'}\n`;
         });
         document.getElementById('message').innerText = statusText;
         focusMessage();
@@ -314,7 +314,7 @@
         round++;
         if (round > 5) {
             players.sort((a,b) => b.chest - a.chest);
-            document.getElementById('message').innerText += "\nFine gara. Vince Giocatore " + players[0].id + " con " + players[0].chest + " diamanti.";
+            document.getElementById('message').innerText += "\nFine gara. Vince Giocatore " + players[0].id + " con " + players[0].chest + " rubini.";
             document.getElementById('restart-container').classList.remove('hidden');
         } else {
             document.getElementById('next-round-container').classList.remove('hidden');
@@ -323,3 +323,4 @@
 </script>
 </body>
 </html>
+
