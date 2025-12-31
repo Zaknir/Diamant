@@ -120,7 +120,10 @@
         activeTrapsInRound = [];
         currentPath = [];
         players.forEach(p => { p.pocket = 0; p.inCave = true; });
+        
+        // Ogni round viene aggiunto il nuovo artefatto al mazzo
         availableArtifactsInDeck.push(artifactValues[round-1]);
+
         document.getElementById('path-content').innerHTML = '';
         document.getElementById('next-round-container').classList.add('hidden');
         document.getElementById('status-container').classList.remove('hidden');
@@ -172,6 +175,7 @@
                     leavingPlayers.forEach(p => p.pocket += share);
                     card.remainder %= leavingPlayers.length;
                 }
+                // Artefatto: riscattato solo se un solo giocatore esce
                 if (card.type === 'artifact' && card.remainder > 0 && leavingPlayers.length === 1) {
                     leavingPlayers[0].pocket += card.remainder;
                     card.remainder = 0;
@@ -197,7 +201,9 @@
             document.getElementById('message').innerText = "Tesoro valore " + card.value + ". Ogni giocatore riceve " + share + ". Restano sulla carta " + rest + " diamanti.";
         } else if (card.type === 'artifact') {
             card.remainder = card.value;
-            document.getElementById('message').innerText = "ARTEFATTO pescato! Valore: " + card.value + ". Solo chi esce da solo lo raccoglie.";
+            // Rimuoviamo l'artefatto dal mazzo appena pescato
+            availableArtifactsInDeck = availableArtifactsInDeck.filter(v => v !== card.value);
+            document.getElementById('message').innerText = "ARTEFATTO pescato! Valore: " + card.value + ". Solo chi esce da solo lo raccoglie. Se non raccolto ora, andrà perso a fine round.";
         } else {
             if (activeTrapsInRound.includes(card.name)) {
                 trapDeck[card.name] -= 1;
@@ -233,7 +239,7 @@
         statusText += "\nStato del mazzo globale:\n";
         
         if (removedTraps.length > 0) {
-            statusText += "Trappole rimosse: " + removedTraps.join(", ") + ".\n";
+            statusText += "Trappole rimosse dal gioco: " + removedTraps.join(", ") + ".\n";
         } else {
             statusText += "Nessuna trappola ancora rimossa.\n";
         }
@@ -242,7 +248,7 @@
             const artifactStrings = availableArtifactsInDeck.map(val => `Artefatto ${val} Punti`);
             statusText += "Artefatti nel mazzo: " + artifactStrings.join(", ") + ".\n";
         } else {
-            statusText += "Non ci sono artefatti nel mazzo in questo round.\n";
+            statusText += "Nessun artefatto nel mazzo per questo round.\n";
         }
 
         document.getElementById('message').innerText = statusText;
@@ -271,7 +277,9 @@
             let name = availableTraps[Math.floor(Math.random() * availableTraps.length)];
             return { type: 'trap', name: name };
         } else if (rand < (totalTraps + totalArtifacts)) {
-            let val = availableArtifactsInDeck.shift(); 
+            // Peschiamo l'artefatto casuale tra quelli disponibili nel mazzo
+            let index = Math.floor(Math.random() * availableArtifactsInDeck.length);
+            let val = availableArtifactsInDeck[index];
             return { type: 'artifact', value: val, remainder: val };
         } else {
             const val = treasureValues[Math.floor(Math.random() * treasureValues.length)];
