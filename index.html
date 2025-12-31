@@ -17,6 +17,7 @@
         button:hover { background: var(--text); color: var(--bg); }
         .hidden { display: none; }
         #message { font-size: 1.4rem; font-weight: bold; margin-bottom: 20px; white-space: pre-line; outline: none; }
+        .status-buttons-row { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
     </style>
 </head>
 <body>
@@ -37,6 +38,9 @@
 
             <div id="confirm-container" class="hidden">
                 <button id="btn-confirm" onclick="prepareTurnChoices()">Prosegui</button>
+            </div>
+
+            <div id="status-container" class="hidden status-buttons-row">
                 <button id="btn-status-path" onclick="announcePathStatus()">Stato percorso</button>
                 <button id="btn-status-players" onclick="announcePlayersStatus()">Stato giocatori</button>
             </div>
@@ -70,13 +74,11 @@
         <div class="info-section" role="region" aria-label="Statistiche Round">
             <p id="round-status-text">Round attuale: 1 di 5. Esploratori in grotta: 0.</p>
         </div>
-
-        <div id="player-list" class="player-list" role="region" aria-label="Stato dei Giocatori">
+        <div id="player-list" class="player-list">
             <h2>Situazione Giocatori:</h2>
             <div id="player-list-content"></div>
         </div>
-        
-        <div id="path" role="region" aria-label="Percorso">
+        <div id="path" role="region">
             <h2>Percorso Esplorato:</h2>
             <div id="path-content"></div>
         </div>
@@ -87,17 +89,22 @@
     let players = [];
     let currentPlayerIndex = 0;
     let round = 1;
-    let activeTraps = [];
+    let activeTrapsInRound = [];
     let currentPath = [];
     let roundDecisions = [];
-
-    // Mazzo Tesori basato sui tuoi valori (inclusi i duplicati)
-    const treasureDeck = [1, 2, 3, 4, 5, 5, 7, 7, 9, 11, 11, 13, 14, 15, 17];
-    const trapNames = ['Serpente', 'Ragno', 'Fuoco', 'Masso', 'Gas'];
+    
+    // Logica Mazzo
+    const treasureValues = [1, 2, 3, 4, 5, 5, 7, 7, 9, 11, 11, 13, 14, 15, 17];
+    let trapDeck = {
+        'Scorpioni': 3,
+        'Serpenti': 3,
+        'Fossa di Lava': 3,
+        'Massi Rotolanti': 3,
+        'Trappole Acuminate': 3
+    };
 
     function focusMessage() {
-        const msg = document.getElementById('message');
-        msg.focus();
+        document.getElementById('message').focus();
     }
 
     function startGame() {
@@ -114,11 +121,12 @@
 
     function startRound() {
         if (round > 5) return;
-        activeTraps = [];
+        activeTrapsInRound = [];
         currentPath = [];
         players.forEach(p => { p.pocket = 0; p.inCave = true; });
         document.getElementById('path-content').innerHTML = '';
         document.getElementById('next-round-container').classList.add('hidden');
+        document.getElementById('status-container').classList.remove('hidden');
         updateInfoText();
         prepareTurnChoices();
     }
@@ -131,6 +139,7 @@
     function prepareTurnChoices() {
         document.getElementById('confirm-container').classList.add('hidden');
         document.getElementById('action-buttons').classList.remove('hidden');
+        document.getElementById('status-container').classList.remove('hidden');
         roundDecisions = [];
         currentPlayerIndex = 0;
         findNextActivePlayer();
@@ -171,7 +180,7 @@
         }
 
         if (players.every(p => !p.inCave)) {
-            endRound("Tutti i giocatori sono usciti. Il round " + round + " è terminato.");
+            endRound("Tutti i giocatori sono usciti. Il round è terminato.");
             return;
         }
 
@@ -184,15 +193,17 @@
             let rest = card.value % stayingPlayers.length;
             card.remainder = rest;
             stayingPlayers.forEach(p => p.pocket += share);
-            document.getElementById('message').innerText = "Tesoro valore " + card.value + ". Ogni giocatore riceve " + share + ". Restano sulla carta " + rest + " diamanti.";
+            document.getElementById('message').innerText = "Tesoro valore " + card.value + ". Ognuno riceve " + share + ". Restano sulla carta " + rest + " diamanti.";
         } else {
-            if (activeTraps.includes(card.name)) {
+            if (activeTrapsInRound.includes(card.name)) {
+                // TRAPPOLA FATALE: Rimuovi una copia dal mazzo globale
+                trapDeck[card.name] -= 1;
                 stayingPlayers.forEach(p => p.pocket = 0);
-                endRound("Secondo pericolo: " + card.name + "! Round finito, diamanti del round persi.");
+                endRound("Secondo pericolo: " + card.name + "! Round finito. Una copia di " + card.name + " viene rimossa dal gioco.");
                 return;
             } else {
-                activeTraps.push(card.name);
-                document.getElementById('message').innerText = "Pericolo: " + card.name + ". Primo avvistamento.";
+                activeTrapsInRound.push(card.name);
+                document.getElementById('message').innerText = "Pericolo: " + card.name + ". Primo avvistamento in questo round.";
             }
         }
 
@@ -207,13 +218,10 @@
         } else {
             let statusText = "Riepilogo percorso:\n";
             currentPath.forEach((card, index) => {
-                statusText += (index + 1) + ". ";
-                if (card.type === 'treasure') {
-                    statusText += "Tesoro valore " + card.value + ", restano sopra " + card.remainder + ".\n";
-                } else {
-                    statusText += "Pericolo " + card.name + ".\n";
-                }
+                statusText += (index + 1) + ". " + (card.type === 'treasure' ? `Tesoro ${card.value} (Resto: ${card.remainder})` : `Pericolo ${card.name}`) + "\n";
             });
+            statusText += "\nTrappole rimaste nel mazzo:\n";
+            for (let t in trapDeck) { statusText += `${t}: ${trapDeck[t]} copie. `; }
             document.getElementById('message').innerText = statusText;
         }
         focusMessage();
@@ -222,20 +230,27 @@
     function announcePlayersStatus() {
         let statusText = "Situazione Tesori Giocatori:\n";
         players.forEach(p => {
-            statusText += `Giocatore ${p.id}: ${p.chest} nel baule, ${p.pocket} nella tasca. ${p.inCave ? 'Ancora in grotta.' : 'Già uscito.'}\n`;
+            statusText += `Giocatore ${p.id}: ${p.chest} nel baule, ${p.pocket} nella tasca. ${p.inCave ? 'In grotta.' : 'Uscito.'}\n`;
         });
         document.getElementById('message').innerText = statusText;
         focusMessage();
     }
 
     function drawCard() {
-        const isTrap = Math.random() < 0.35;
-        if (!isTrap) {
-            const val = treasureDeck[Math.floor(Math.random() * treasureDeck.length)];
-            return { type: 'treasure', value: val, remainder: 0 };
+        // Probabilità: 15 carte tesoro vs numero attuale di trappole nel mazzo
+        let totalTraps = Object.values(trapDeck).reduce((a, b) => a + b, 0);
+        let totalCards = treasureValues.length + totalTraps;
+        
+        if (Math.random() < (totalTraps / totalCards)) {
+            // Pesca trappola
+            let availableTraps = [];
+            for (let t in trapDeck) { for(let i=0; i<trapDeck[t]; i++) availableTraps.push(t); }
+            let name = availableTraps[Math.floor(Math.random() * availableTraps.length)];
+            return { type: 'trap', name: name };
         } else {
-            const name = trapNames[Math.floor(Math.random() * trapNames.length)];
-            return { type: 'trap', name: name, remainder: 0 };
+            // Pesca tesoro
+            const val = treasureValues[Math.floor(Math.random() * treasureValues.length)];
+            return { type: 'treasure', value: val, remainder: 0 };
         }
     }
 
@@ -244,14 +259,14 @@
         const listContent = document.getElementById('player-list-content');
         listContent.innerHTML = players.map(p => `
             <div class="player-row ${p.id === highlightId ? 'active-turn' : ''} ${!p.inCave ? 'out' : ''}">
-                Giocatore ${p.id}. Stato: ${p.inCave ? 'In grotta' : 'Uscito'}. Tasca: ${p.pocket} diamanti. Baule: ${p.chest} diamanti.
+                Giocatore ${p.id}. Tasca: ${p.pocket}, Baule: ${p.chest}. ${p.inCave ? 'In grotta' : 'Uscito'}.
             </div>
         `).join('');
 
         const pathDiv = document.getElementById('path-content');
         pathDiv.innerHTML = currentPath.map(card => `
             <div style="border: 1px solid black; padding: 5px; margin: 2px; display: inline-block;">
-                ${card.type === 'treasure' ? 'Tesoro ' + card.value : 'Pericolo ' + card.name}
+                ${card.type === 'treasure' ? 'T ' + card.value : 'P ' + card.name}
             </div>
         `).join('');
     }
@@ -261,11 +276,12 @@
         document.getElementById('message').innerText = msg;
         document.getElementById('action-buttons').classList.add('hidden');
         document.getElementById('confirm-container').classList.add('hidden');
+        document.getElementById('status-container').classList.add('hidden');
         focusMessage();
         round++;
         if (round > 5) {
             players.sort((a,b) => b.chest - a.chest);
-            document.getElementById('message').innerText += "\nFine gara. Vince Giocatore " + players[0].id + " con " + players[0].chest + " diamanti.";
+            document.getElementById('message').innerText += "\nFine gara. Vincitore Giocatore " + players[0].id + " con " + players[0].chest + " diamanti.";
             document.getElementById('restart-container').classList.remove('hidden');
         } else {
             document.getElementById('next-round-container').classList.remove('hidden');
