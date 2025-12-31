@@ -37,7 +37,8 @@
 
             <div id="confirm-container" class="hidden">
                 <button id="btn-confirm" onclick="prepareTurnChoices()">Prosegui</button>
-                <button id="btn-status" onclick="announcePathStatus()">Stato percorso</button>
+                <button id="btn-status-path" onclick="announcePathStatus()">Stato percorso</button>
+                <button id="btn-status-players" onclick="announcePlayersStatus()">Stato giocatori</button>
             </div>
 
             <div id="next-round-container" class="hidden">
@@ -89,6 +90,10 @@
     let activeTraps = [];
     let currentPath = [];
     let roundDecisions = [];
+
+    // Mazzo Tesori basato sui tuoi valori (inclusi i duplicati)
+    const treasureDeck = [1, 2, 3, 4, 5, 5, 7, 7, 9, 11, 11, 13, 14, 15, 17];
+    const trapNames = ['Serpente', 'Ragno', 'Fuoco', 'Masso', 'Gas'];
 
     function focusMessage() {
         const msg = document.getElementById('message');
@@ -214,13 +219,23 @@
         focusMessage();
     }
 
+    function announcePlayersStatus() {
+        let statusText = "Situazione Tesori Giocatori:\n";
+        players.forEach(p => {
+            statusText += `Giocatore ${p.id}: ${p.chest} nel baule, ${p.pocket} nella tasca. ${p.inCave ? 'Ancora in grotta.' : 'Già uscito.'}\n`;
+        });
+        document.getElementById('message').innerText = statusText;
+        focusMessage();
+    }
+
     function drawCard() {
         const isTrap = Math.random() < 0.35;
         if (!isTrap) {
-            return { type: 'treasure', value: Math.floor(Math.random() * 14) + 2, remainder: 0 };
+            const val = treasureDeck[Math.floor(Math.random() * treasureDeck.length)];
+            return { type: 'treasure', value: val, remainder: 0 };
         } else {
-            const names = ['Serpente', 'Ragno', 'Fuoco', 'Masso', 'Gas'];
-            return { type: 'trap', name: names[Math.floor(Math.random() * names.length)], remainder: 0 };
+            const name = trapNames[Math.floor(Math.random() * trapNames.length)];
+            return { type: 'trap', name: name, remainder: 0 };
         }
     }
 
