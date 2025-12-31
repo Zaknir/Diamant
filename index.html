@@ -97,7 +97,7 @@
     const artifactValues = [5, 7, 8, 10, 12];
     let trapDeck = { 'Scorpioni': 3, 'Serpenti': 3, 'Fossa di Lava': 3, 'Massi Rotolanti': 3, 'Trappole Acuminate': 3 };
     let availableArtifactsInDeck = []; 
-    let removedTraps = []; // Per tenere traccia di cosa è uscito dal gioco
+    let removedTraps = [];
 
     function focusMessage() {
         document.getElementById('message').focus();
@@ -232,20 +232,19 @@
             });
         }
 
-        // INFO AGGIUNTIVE SUL MAZZO
         statusText += "\nStato del mazzo globale:\n";
         
-        // Trappole rimosse
         if (removedTraps.length > 0) {
             statusText += "Trappole rimosse: " + removedTraps.join(", ") + ".\n";
         } else {
             statusText += "Nessuna trappola ancora rimossa.\n";
         }
 
-        // Artefatti futuri
-        let futureArtifacts = artifactValues.slice(round);
-        if (futureArtifacts.length > 0) {
-            statusText += "Artefatti ancora nel mazzo (round futuri): " + futureArtifacts.join(", ") + ".\n";
+        // Messaggio aggiornato: dice solo cosa c'è attualmente nel mazzo
+        if (availableArtifactsInDeck.length > 0) {
+            statusText += "Artefatti attualmente pescabili in questo round: " + availableArtifactsInDeck.join(", ") + ".\n";
+        } else {
+            statusText += "Non ci sono artefatti pescabili rimasti in questo round.\n";
         }
 
         document.getElementById('message').innerText = statusText;
@@ -309,7 +308,7 @@
         round++;
         if (round > 5) {
             players.sort((a,b) => b.chest - a.chest);
-            document.getElementById('message').innerText += "\nFine gara. Vincitore Giocatore " + players[0].id + " con " + players[0].chest + " diamanti.";
+            document.getElementById('message').innerText += "\nFine gara. Vince Giocatore " + players[0].id + " con " + players[0].chest + " diamanti.";
             document.getElementById('restart-container').classList.remove('hidden');
         } else {
             document.getElementById('next-round-container').classList.remove('hidden');
