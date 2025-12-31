@@ -16,7 +16,7 @@
         button { padding: 18px 28px; font-size: 1.3rem; cursor: pointer; margin: 10px 5px; border: 2px solid var(--text); background: var(--bg); color: var(--text); font-weight: bold; }
         button:hover { background: var(--text); color: var(--bg); }
         .hidden { display: none; }
-        #message { font-size: 1.4rem; font-weight: bold; margin-bottom: 20px; white-space: pre-line; }
+        #message { font-size: 1.4rem; font-weight: bold; margin-bottom: 20px; white-space: pre-line; outline: none; }
     </style>
 </head>
 <body>
@@ -25,7 +25,7 @@
     <h1>Diamant</h1>
 
     <div id="interaction-zone" class="main-controls hidden">
-        <div id="message" role="alert" aria-live="assertive">
+        <div id="message" role="alert" aria-live="assertive" tabindex="-1">
             Benvenuti. Iniziate il round.
         </div>
 
@@ -90,6 +90,11 @@
     let currentPath = [];
     let roundDecisions = [];
 
+    function focusMessage() {
+        const msg = document.getElementById('message');
+        msg.focus();
+    }
+
     function startGame() {
         const count = parseInt(document.getElementById('player-select').value);
         players = [];
@@ -133,6 +138,7 @@
         if (currentPlayerIndex < players.length) {
             updateUI(players[currentPlayerIndex].id);
             document.getElementById('message').innerText = "Giocatore " + players[currentPlayerIndex].id + ", scegli: avanti o esci?";
+            focusMessage();
         } else {
             executeTurnLogic();
         }
@@ -187,24 +193,25 @@
 
         updateUI();
         document.getElementById('confirm-container').classList.remove('hidden');
-        document.getElementById('btn-confirm').focus();
+        focusMessage();
     }
 
     function announcePathStatus() {
         if (currentPath.length === 0) {
             document.getElementById('message').innerText = "Percorso vuoto.";
-            return;
+        } else {
+            let statusText = "Riepilogo percorso:\n";
+            currentPath.forEach((card, index) => {
+                statusText += (index + 1) + ". ";
+                if (card.type === 'treasure') {
+                    statusText += "Tesoro valore " + card.value + ", restano sopra " + card.remainder + ".\n";
+                } else {
+                    statusText += "Pericolo " + card.name + ".\n";
+                }
+            });
+            document.getElementById('message').innerText = statusText;
         }
-        let statusText = "Riepilogo percorso:\n";
-        currentPath.forEach((card, index) => {
-            statusText += (index + 1) + ". ";
-            if (card.type === 'treasure') {
-                statusText += "Tesoro valore " + card.value + ", restano sopra " + card.remainder + ".\n";
-            } else {
-                statusText += "Pericolo " + card.name + ".\n";
-            }
-        });
-        document.getElementById('message').innerText = statusText;
+        focusMessage();
     }
 
     function drawCard() {
@@ -239,14 +246,14 @@
         document.getElementById('message').innerText = msg;
         document.getElementById('action-buttons').classList.add('hidden');
         document.getElementById('confirm-container').classList.add('hidden');
+        focusMessage();
         round++;
         if (round > 5) {
             players.sort((a,b) => b.chest - a.chest);
-            document.getElementById('message').innerText = "Fine gara. Vincitore Giocatore " + players[0].id + " con " + players[0].chest + " diamanti.";
+            document.getElementById('message').innerText += "\nFine gara. Vince Giocatore " + players[0].id + " con " + players[0].chest + " diamanti.";
             document.getElementById('restart-container').classList.remove('hidden');
         } else {
             document.getElementById('next-round-container').classList.remove('hidden');
-            document.getElementById('btn-next-round').focus();
         }
     }
 </script>
