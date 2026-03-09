@@ -1,0 +1,105 @@
+Documentazione Tecnica: Diamant Web Edition
+
+1. Architettura del Software
+
+L'applicazione è sviluppata come una Single Page Application (SPA) contenuta in un unico file. La gestione delle diverse fasi di gioco (Setup, Nomi, Partita) avviene tramite la manipolazione del DOM e l'alternanza della classe CSS .hidden.
+
+Stack Tecnologico
+
+HTML5: Struttura semantica delle sezioni di gioco.
+
+CSS3: Layout basato su Flexbox e variabili native per il sistema di temi.
+
+JavaScript (ES6+): Motore logico deterministico e gestione degli eventi.
+
+2. Gestione dello Stato (Global State)
+
+Le variabili globali mantengono la persistenza dei dati durante la sessione:
+
+players: Array di oggetti. Ogni oggetto contiene:
+
+name: Stringa definita dall'utente.
+
+pocket: Rubini accumulati nel turno corrente (volatili).
+
+chest: Rubini salvati definitivamente (permanenti).
+
+inCave: Booleano che determina se il giocatore partecipa alla votazione.
+
+trapDeck: Oggetto che funge da database per il mazzo delle trappole. Ogni chiave (es. 'Scorpioni') ha un valore numerico che decresce quando una trappola viene rimossa dal gioco permanentemente.
+
+currentPath: Array di oggetti "carta" estratti nel round. Ogni oggetto treasure mantiene la proprietà remainder per tracciare i rubini non spartiti.
+
+3. Logica del Mazzo e Probabilità
+
+La funzione drawCard() non usa un mazzo statico pre-generato, ma calcola le probabilità di estrazione a ogni chiamata:
+
+Calcolo Totale: Somma dei tesori residui (15), artefatti disponibili e trappole ancora presenti nel trapDeck.
+
+Rilascio Pesato: Genera un numero casuale tra 0 e il totale delle carte residue.
+
+Selezione:
+
+Se il valore cade nell'intervallo delle trappole, estrae casualmente tra quelle con contatore > 0.
+
+Se cade negli artefatti, estrae l'artefatto del round corrente.
+
+Altrimenti estrae un valore da treasureValues.
+
+4. Flusso del Turno e Validazione
+
+Il ciclo di gioco è governato da una macchina a stati implicita:
+
+Fase A: Inizio Round
+
+L'artefatto del round viene aggiunto al mazzo.
+
+Viene chiamata executeTurnLogic() senza votazione per la prima carta (obbligatoria).
+
+Fase B: Votazione Segreta
+
+handleTransition(): Oscura i dati sensibili per il passaggio del dispositivo.
+
+prepareTurnChoices(): Cicla i giocatori con inCave: true.
+
+Selezione Fluida: selectAction() aggiorna pendingDecision e mostra l'anteprima. Il giocatore può cambiare idea finché non preme confirmDecision().
+
+Fase C: Risoluzione
+
+executeTurnLogic() analizza roundDecisions.
+
+Gestione Uscite: I giocatori che escono dividono i remainder delle carte tesoro nel percorso. Se esce un solo giocatore, preleva l'artefatto.
+
+Spartizione Tesori: I rubini della nuova carta vengono divisi per stayingPlayers.length. Il modulo (%) viene salvato come remainder.
+
+5. Meccaniche di Fine Round e Vittoria
+
+Fine per Trappola
+
+Se viene estratta una trappola già presente in activeTrapsInRound:
+
+Tutti i giocatori attivi azzerano la pocket.
+
+Il contatore di quella specifica trappola in trapDeck viene decrementato di 1 (rimozione permanente).
+
+Il round termina forzatamente.
+
+Fine Partita
+
+Al termine del 5° round, l'array players viene ordinato in base alla proprietà chest. Il primo elemento viene dichiarato vincitore.
+
+6. Guida alla Manutenzione
+
+Modifica del Bilanciamento
+
+Per alterare la difficoltà o la durata, intervenire sulle costanti a inizio script:
+
+treasureValues: Modificare i valori per aumentare l'inflazione di rubini.
+
+trapDeck: Modificare il valore iniziale (default 3) per rendere la grotta più o meno letale.
+
+artifactValues: Regolare i punti vittoria degli artefatti per round.
+
+Requisito di Sicurezza
+
+Tutte le operazioni sui dati dei giocatori devono essere precedute dal controllo if (players.every(p => !p.inCave)) per evitare loop infiniti o estrazioni orfane.
