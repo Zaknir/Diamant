@@ -14,7 +14,6 @@
         .active-turn { background: var(--highlight); font-weight: bold; border: 2px solid var(--text); padding: 5px; }
         .out { color: #666666; font-style: italic; }
         button { padding: 18px 28px; font-size: 1.3rem; cursor: pointer; margin: 10px 5px; border: 2px solid var(--text); background: var(--bg); color: var(--text); font-weight: bold; }
-        button:disabled { border-color: #ccc; color: #ccc; cursor: not-allowed; }
         button:hover:not(:disabled) { background: var(--text); color: var(--bg); }
         .hidden { display: none; }
         #message { font-size: 1.4rem; font-weight: bold; margin-bottom: 20px; white-space: pre-line; outline: none; }
@@ -87,7 +86,7 @@
 </div>
 
 <script>
-    // Inizializzazione variabili di stato globale
+    // Stato globale dell'applicazione
     let players = [];
     let currentPlayerIndex = 0;
     let round = 1;
@@ -95,19 +94,19 @@
     let currentPath = [];
     let roundDecisions = [];
     
-    // Database dei valori del mazzo
+    // Configurazione mazzo (Tesori, Artefatti e Trappole)
     const treasureValues = [1, 2, 3, 4, 5, 5, 7, 7, 9, 11, 11, 13, 14, 15, 17];
     const artifactValues = [5, 7, 8, 10, 12];
     let trapDeck = { 'Scorpioni': 3, 'Serpenti': 3, 'Fossa di Lava': 3, 'Massi Rotolanti': 3, 'Trappole Acuminate': 3 };
     let availableArtifactsInDeck = []; 
     let removedTraps = [];
 
-    // Gestione del focus per accessibilità
+    // Funzione per il focus sull'area messaggi (accessibilità)
     function focusMessage() {
         document.getElementById('message').focus();
     }
 
-    // Crea i profili dei giocatori e avvia l'interfaccia di gioco
+    // Inizializza i giocatori e l'interfaccia
     function startGame() {
         const count = parseInt(document.getElementById('player-select').value);
         players = [];
@@ -120,7 +119,7 @@
         startRound();
     }
 
-    // Resetta lo stato per un nuovo round e inserisce l'artefatto corrispondente nel mazzo
+    // Avvia un nuovo round resettando il percorso e inserendo l'artefatto del round
     function startRound() {
         if (round > 5) return;
         activeTrapsInRound = [];
@@ -132,30 +131,28 @@
         document.getElementById('next-round-container').classList.add('hidden');
         document.getElementById('status-container').classList.remove('hidden');
         updateInfoText();
-        prepareTurnChoices();
+        
+        // MODIFICA: Salta la votazione iniziale. Il round inizia pescando subito la prima carta.
+        executeTurnLogic();
     }
 
-    // Aggiorna il testo informativo in alto sul numero di esploratori attivi
+    // Aggiorna le informazioni testuali generali
     function updateInfoText() {
         const activeCount = players.filter(p => p.inCave).length;
         document.getElementById('round-status-text').innerText = `Round attuale: ${round} di 5. Esploratori in grotta: ${activeCount}.`;
     }
 
-    // Prepara la fase di votazione del turno per i giocatori rimasti
+    // Gestisce la raccolta delle votazioni per ogni giocatore attivo
     function prepareTurnChoices() {
         document.getElementById('confirm-container').classList.add('hidden');
         document.getElementById('action-buttons').classList.remove('hidden');
         document.getElementById('status-container').classList.remove('hidden');
-        
-        // REQUISITO: Se il percorso è vuoto (prima stanza), disabilita il ritiro
-        document.getElementById('btn-leave').disabled = (currentPath.length === 0);
-        
         roundDecisions = [];
         currentPlayerIndex = 0;
         findNextActivePlayer();
     }
 
-    // Cicla tra i giocatori per raccogliere le loro decisioni (avanti/esci)
+    // Trova il prossimo giocatore che deve decidere se proseguire o uscire
     function findNextActivePlayer() {
         while (currentPlayerIndex < players.length && !players[currentPlayerIndex].inCave) {
             currentPlayerIndex++;
@@ -169,41 +166,43 @@
         }
     }
 
-    // Registra la scelta del singolo giocatore e passa al successivo
+    // Registra la decisione del giocatore e passa al successivo
     function processTurn(decision) {
         roundDecisions.push({ playerId: players[currentPlayerIndex].id, action: decision });
         currentPlayerIndex++;
         findNextActivePlayer();
     }
 
-    // Esegue le conseguenze delle scelte: gestisce chi esce, pesca una nuova carta e assegna tesori
+    // Logica centrale: gestisce uscite, spartizione rubini e pesca delle carte
     function executeTurnLogic() {
         document.getElementById('action-buttons').classList.add('hidden');
-        let leavingPlayers = players.filter(p => p.inCave && roundDecisions.find(d => d.playerId === p.id).action === 'leave');
         
-        // Gestione spartizione tesori e artefatti rimasti a terra per chi esce
-        if (leavingPlayers.length > 0) {
-            currentPath.forEach(card => {
-                if (card.type === 'treasure' && card.remainder > 0) {
-                    let share = Math.floor(card.remainder / leavingPlayers.length);
-                    leavingPlayers.forEach(p => p.pocket += share);
-                    card.remainder %= leavingPlayers.length;
-                }
-                if (card.type === 'artifact' && card.remainder > 0 && leavingPlayers.length === 1) {
-                    leavingPlayers[0].pocket += card.remainder;
-                    card.remainder = 0;
-                }
-            });
-            leavingPlayers.forEach(p => { p.chest += p.pocket; p.pocket = 0; p.inCave = false; });
+        // Gestione uscite: avviene solo se sono state prese decisioni (quindi non al primo turno automatico)
+        if (roundDecisions.length > 0) {
+            let leavingPlayers = players.filter(p => p.inCave && roundDecisions.find(d => d.playerId === p.id).action === 'leave');
+            if (leavingPlayers.length > 0) {
+                currentPath.forEach(card => {
+                    if (card.type === 'treasure' && card.remainder > 0) {
+                        let share = Math.floor(card.remainder / leavingPlayers.length);
+                        leavingPlayers.forEach(p => p.pocket += share);
+                        card.remainder %= leavingPlayers.length;
+                    }
+                    if (card.type === 'artifact' && card.remainder > 0 && leavingPlayers.length === 1) {
+                        leavingPlayers[0].pocket += card.remainder;
+                        card.remainder = 0;
+                    }
+                });
+                leavingPlayers.forEach(p => { p.chest += p.pocket; p.pocket = 0; p.inCave = false; });
+            }
         }
 
-        // Se tutti sono usciti, il round termina immediatamente
+        // Verifica se il round deve finire perché tutti sono usciti
         if (players.every(p => !p.inCave)) {
             endRound("Tutti usciti. Il round " + round + " è terminato.");
             return;
         }
 
-        // Pesca della carta ed esecuzione degli effetti (Tesoro, Artefatto o Trappola)
+        // Pesca della carta e gestione effetti
         const card = drawCard();
         currentPath.push(card);
         let stayingPlayers = players.filter(p => p.inCave);
@@ -217,14 +216,13 @@
         } else if (card.type === 'artifact') {
             card.remainder = card.value;
             availableArtifactsInDeck = availableArtifactsInDeck.filter(v => v !== card.value);
-            document.getElementById('message').innerText = "ARTEFATTO pescato! Valore: " + card.value + ". Solo chi esce da solo lo raccoglie.";
+            document.getElementById('message').innerText = "ARTEFATTO pescato! Valore: " + card.value + ".";
         } else {
-            // Se la trappola è già apparsa nel round attuale, i giocatori perdono tutto e il round finisce
             if (activeTrapsInRound.includes(card.name)) {
                 trapDeck[card.name] -= 1;
                 removedTraps.push(card.name);
                 stayingPlayers.forEach(p => p.pocket = 0);
-                endRound("Secondo pericolo: " + card.name + "! Round finito. Una copia rimossa dal gioco.");
+                endRound("Secondo pericolo: " + card.name + "! Round finito.");
                 return;
             } else {
                 activeTrapsInRound.push(card.name);
@@ -235,32 +233,30 @@
         updateUI();
         document.getElementById('confirm-container').classList.remove('hidden');
         focusMessage();
+        roundDecisions = []; // Reset delle decisioni per il prossimo turno
     }
 
-    // Mostra il riepilogo testuale delle carte nel percorso e dello stato del mazzo
+    // Mostra il riepilogo del percorso attuale
     function announcePathStatus() {
-        let statusText = currentPath.length === 0 ? "Percorso vuoto.\n" : "Riepilogo percorso attuale:\n";
+        let statusText = currentPath.length === 0 ? "Percorso vuoto.\n" : "Riepilogo percorso:\n";
         currentPath.forEach((card, index) => {
-            statusText += (index + 1) + ". ";
-            if (card.type === 'treasure') statusText += `Tesoro ${card.value} (Resto: ${card.remainder})\n`;
-            else if (card.type === 'artifact') statusText += `ARTEFATTO ${card.value} (${card.remainder > 0 ? 'Presente' : 'Raccolto'})\n`;
-            else statusText += `Pericolo ${card.name}\n`;
+            statusText += (index + 1) + ". " + (card.type === 'treasure' ? `Tesoro ${card.value}` : card.type === 'artifact' ? `ART ${card.value}` : `Trappola ${card.name}`) + "\n";
         });
         document.getElementById('message').innerText = statusText;
         focusMessage();
     }
 
-    // Mostra il riepilogo testuale della situazione economica di ogni giocatore
+    // Mostra i tesori accumulati da ogni giocatore
     function announcePlayersStatus() {
-        let statusText = "Situazione Tesori Giocatori:\n";
+        let statusText = "Situazione Tesori:\n";
         players.forEach(p => {
-            statusText += `Giocatore ${p.id}: ${p.chest} baule, ${p.pocket} tasca. ${p.inCave ? 'In grotta.' : 'Uscito.'}\n`;
+            statusText += `Giocatore ${p.id}: ${p.chest} baule, ${p.pocket} tasca.\n`;
         });
         document.getElementById('message').innerText = statusText;
         focusMessage();
     }
 
-    // Logica di estrazione casuale pesata dal mazzo (Trappole, Artefatti o Tesori)
+    // Estrazione casuale dal mazzo residuo
     function drawCard() {
         let totalTraps = Object.values(trapDeck).reduce((a, b) => a + b, 0);
         let totalArtifacts = availableArtifactsInDeck.length;
@@ -282,25 +278,23 @@
         }
     }
 
-    // Aggiorna visivamente l'elenco dei giocatori e le icone del percorso sulla pagina
+    // Aggiornamento grafico della lista giocatori e del percorso
     function updateUI(highlightId = null) {
         updateInfoText();
-        const listContent = document.getElementById('player-list-content');
-        listContent.innerHTML = players.map(p => `
+        document.getElementById('player-list-content').innerHTML = players.map(p => `
             <div class="player-row ${p.id === highlightId ? 'active-turn' : ''} ${!p.inCave ? 'out' : ''}">
-                Giocatore ${p.id}. Tasca: ${p.pocket}, Baule: ${p.chest}. ${p.inCave ? 'In grotta' : 'Uscito'}.
+                G ${p.id}. Tasca: ${p.pocket}, Baule: ${p.chest}.
             </div>
         `).join('');
 
-        const pathDiv = document.getElementById('path-content');
-        pathDiv.innerHTML = currentPath.map(card => `
+        document.getElementById('path-content').innerHTML = currentPath.map(card => `
             <div style="border: 1px solid black; padding: 5px; margin: 2px; display: inline-block;">
                 ${card.type === 'treasure' ? 'T ' + card.value : (card.type === 'artifact' ? 'ART ' + card.value : 'P ' + card.name)}
             </div>
         `).join('');
     }
 
-    // Conclude il round, incrementa il contatore e verifica se la partita è finita
+    // Gestione della fine del round e controllo fine partita
     function endRound(msg) {
         updateUI();
         document.getElementById('message').innerText = msg;
@@ -311,7 +305,7 @@
         round++;
         if (round > 5) {
             players.sort((a,b) => b.chest - a.chest);
-            document.getElementById('message').innerText += "\nFine gara. Vince Giocatore " + players[0].id + " con " + players[0].chest + " rubini.";
+            document.getElementById('message').innerText += "\nFine. Vince G" + players[0].id + " con " + players[0].chest + ".";
             document.getElementById('restart-container').classList.remove('hidden');
         } else {
             document.getElementById('next-round-container').classList.remove('hidden');
