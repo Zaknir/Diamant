@@ -14,7 +14,8 @@
         .active-turn { background: var(--highlight); font-weight: bold; border: 2px solid var(--text); padding: 5px; }
         .out { color: #666666; font-style: italic; }
         button { padding: 18px 28px; font-size: 1.3rem; cursor: pointer; margin: 10px 5px; border: 2px solid var(--text); background: var(--bg); color: var(--text); font-weight: bold; }
-        button:hover { background: var(--text); color: var(--bg); }
+        button:disabled { border-color: #ccc; color: #ccc; cursor: not-allowed; }
+        button:hover:not(:disabled) { background: var(--text); color: var(--bg); }
         .hidden { display: none; }
         #message { font-size: 1.4rem; font-weight: bold; margin-bottom: 20px; white-space: pre-line; outline: none; }
         .status-buttons-row { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
@@ -86,6 +87,7 @@
 </div>
 
 <script>
+    // Inizializzazione variabili di stato globale
     let players = [];
     let currentPlayerIndex = 0;
     let round = 1;
@@ -93,16 +95,19 @@
     let currentPath = [];
     let roundDecisions = [];
     
+    // Database dei valori del mazzo
     const treasureValues = [1, 2, 3, 4, 5, 5, 7, 7, 9, 11, 11, 13, 14, 15, 17];
     const artifactValues = [5, 7, 8, 10, 12];
     let trapDeck = { 'Scorpioni': 3, 'Serpenti': 3, 'Fossa di Lava': 3, 'Massi Rotolanti': 3, 'Trappole Acuminate': 3 };
     let availableArtifactsInDeck = []; 
     let removedTraps = [];
 
+    // Gestione del focus per accessibilità
     function focusMessage() {
         document.getElementById('message').focus();
     }
 
+    // Crea i profili dei giocatori e avvia l'interfaccia di gioco
     function startGame() {
         const count = parseInt(document.getElementById('player-select').value);
         players = [];
@@ -115,13 +120,12 @@
         startRound();
     }
 
+    // Resetta lo stato per un nuovo round e inserisce l'artefatto corrispondente nel mazzo
     function startRound() {
         if (round > 5) return;
         activeTrapsInRound = [];
         currentPath = [];
         players.forEach(p => { p.pocket = 0; p.inCave = true; });
-        
-        // Ogni round viene aggiunto il nuovo artefatto al mazzo
         availableArtifactsInDeck.push(artifactValues[round-1]);
 
         document.getElementById('path-content').innerHTML = '';
@@ -131,20 +135,27 @@
         prepareTurnChoices();
     }
 
+    // Aggiorna il testo informativo in alto sul numero di esploratori attivi
     function updateInfoText() {
         const activeCount = players.filter(p => p.inCave).length;
         document.getElementById('round-status-text').innerText = `Round attuale: ${round} di 5. Esploratori in grotta: ${activeCount}.`;
     }
 
+    // Prepara la fase di votazione del turno per i giocatori rimasti
     function prepareTurnChoices() {
         document.getElementById('confirm-container').classList.add('hidden');
         document.getElementById('action-buttons').classList.remove('hidden');
         document.getElementById('status-container').classList.remove('hidden');
+        
+        // REQUISITO: Se il percorso è vuoto (prima stanza), disabilita il ritiro
+        document.getElementById('btn-leave').disabled = (currentPath.length === 0);
+        
         roundDecisions = [];
         currentPlayerIndex = 0;
         findNextActivePlayer();
     }
 
+    // Cicla tra i giocatori per raccogliere le loro decisioni (avanti/esci)
     function findNextActivePlayer() {
         while (currentPlayerIndex < players.length && !players[currentPlayerIndex].inCave) {
             currentPlayerIndex++;
@@ -158,16 +169,19 @@
         }
     }
 
+    // Registra la scelta del singolo giocatore e passa al successivo
     function processTurn(decision) {
         roundDecisions.push({ playerId: players[currentPlayerIndex].id, action: decision });
         currentPlayerIndex++;
         findNextActivePlayer();
     }
 
+    // Esegue le conseguenze delle scelte: gestisce chi esce, pesca una nuova carta e assegna tesori
     function executeTurnLogic() {
         document.getElementById('action-buttons').classList.add('hidden');
         let leavingPlayers = players.filter(p => p.inCave && roundDecisions.find(d => d.playerId === p.id).action === 'leave');
         
+        // Gestione spartizione tesori e artefatti rimasti a terra per chi esce
         if (leavingPlayers.length > 0) {
             currentPath.forEach(card => {
                 if (card.type === 'treasure' && card.remainder > 0) {
@@ -175,7 +189,6 @@
                     leavingPlayers.forEach(p => p.pocket += share);
                     card.remainder %= leavingPlayers.length;
                 }
-                // Artefatto: riscattato solo se un solo giocatore esce
                 if (card.type === 'artifact' && card.remainder > 0 && leavingPlayers.length === 1) {
                     leavingPlayers[0].pocket += card.remainder;
                     card.remainder = 0;
@@ -184,11 +197,13 @@
             leavingPlayers.forEach(p => { p.chest += p.pocket; p.pocket = 0; p.inCave = false; });
         }
 
+        // Se tutti sono usciti, il round termina immediatamente
         if (players.every(p => !p.inCave)) {
             endRound("Tutti usciti. Il round " + round + " è terminato.");
             return;
         }
 
+        // Pesca della carta ed esecuzione degli effetti (Tesoro, Artefatto o Trappola)
         const card = drawCard();
         currentPath.push(card);
         let stayingPlayers = players.filter(p => p.inCave);
@@ -201,15 +216,15 @@
             document.getElementById('message').innerText = "Tesoro valore " + card.value + ". Ogni giocatore riceve " + share + ". Restano sulla carta " + rest + " rubini.";
         } else if (card.type === 'artifact') {
             card.remainder = card.value;
-            // Rimuoviamo l'artefatto dal mazzo appena pescato
             availableArtifactsInDeck = availableArtifactsInDeck.filter(v => v !== card.value);
-            document.getElementById('message').innerText = "ARTEFATTO pescato! Valore: " + card.value + ". Solo chi esce da solo lo raccoglie. Se non raccolto ora, andrà perso a fine round.";
+            document.getElementById('message').innerText = "ARTEFATTO pescato! Valore: " + card.value + ". Solo chi esce da solo lo raccoglie.";
         } else {
+            // Se la trappola è già apparsa nel round attuale, i giocatori perdono tutto e il round finisce
             if (activeTrapsInRound.includes(card.name)) {
                 trapDeck[card.name] -= 1;
                 removedTraps.push(card.name);
                 stayingPlayers.forEach(p => p.pocket = 0);
-                endRound("Secondo pericolo: " + card.name + "! Round finito. Una copia di " + card.name + " viene rimossa dal gioco.");
+                endRound("Secondo pericolo: " + card.name + "! Round finito. Una copia rimossa dal gioco.");
                 return;
             } else {
                 activeTrapsInRound.push(card.name);
@@ -222,53 +237,34 @@
         focusMessage();
     }
 
+    // Mostra il riepilogo testuale delle carte nel percorso e dello stato del mazzo
     function announcePathStatus() {
-        let statusText = "";
-        if (currentPath.length === 0) {
-            statusText = "Percorso vuoto.\n";
-        } else {
-            statusText = "Riepilogo percorso attuale:\n";
-            currentPath.forEach((card, index) => {
-                statusText += (index + 1) + ". ";
-                if (card.type === 'treasure') statusText += `Tesoro ${card.value} (Resto: ${card.remainder})\n`;
-                else if (card.type === 'artifact') statusText += `ARTEFATTO ${card.value} (${card.remainder > 0 ? 'Ancora presente' : 'Già raccolto'})\n`;
-                else statusText += `Pericolo ${card.name}\n`;
-            });
-        }
-
-        statusText += "\nStato del mazzo globale:\n";
-        
-        if (removedTraps.length > 0) {
-            statusText += "Trappole rimosse dal gioco: " + removedTraps.join(", ") + ".\n";
-        } else {
-            statusText += "Nessuna trappola ancora rimossa.\n";
-        }
-
-        if (availableArtifactsInDeck.length > 0) {
-            const artifactStrings = availableArtifactsInDeck.map(val => `Artefatto ${val} Punti`);
-            statusText += "Artefatti nel mazzo: " + artifactStrings.join(", ") + ".\n";
-        } else {
-            statusText += "Nessun artefatto nel mazzo per questo round.\n";
-        }
-
-        document.getElementById('message').innerText = statusText;
-        focusMessage();
-    }
-
-    function announcePlayersStatus() {
-        let statusText = "Situazione Tesori Giocatori:\n";
-        players.forEach(p => {
-            statusText += `Giocatore ${p.id} ha ${p.chest} rubini nel baule e ${p.pocket} rubini nella tasca. ${p.inCave ? 'In grotta.' : 'Uscito.'}\n`;
+        let statusText = currentPath.length === 0 ? "Percorso vuoto.\n" : "Riepilogo percorso attuale:\n";
+        currentPath.forEach((card, index) => {
+            statusText += (index + 1) + ". ";
+            if (card.type === 'treasure') statusText += `Tesoro ${card.value} (Resto: ${card.remainder})\n`;
+            else if (card.type === 'artifact') statusText += `ARTEFATTO ${card.value} (${card.remainder > 0 ? 'Presente' : 'Raccolto'})\n`;
+            else statusText += `Pericolo ${card.name}\n`;
         });
         document.getElementById('message').innerText = statusText;
         focusMessage();
     }
 
+    // Mostra il riepilogo testuale della situazione economica di ogni giocatore
+    function announcePlayersStatus() {
+        let statusText = "Situazione Tesori Giocatori:\n";
+        players.forEach(p => {
+            statusText += `Giocatore ${p.id}: ${p.chest} baule, ${p.pocket} tasca. ${p.inCave ? 'In grotta.' : 'Uscito.'}\n`;
+        });
+        document.getElementById('message').innerText = statusText;
+        focusMessage();
+    }
+
+    // Logica di estrazione casuale pesata dal mazzo (Trappole, Artefatti o Tesori)
     function drawCard() {
         let totalTraps = Object.values(trapDeck).reduce((a, b) => a + b, 0);
         let totalArtifacts = availableArtifactsInDeck.length;
         let totalCards = treasureValues.length + totalTraps + totalArtifacts;
-        
         let rand = Math.random() * totalCards;
 
         if (rand < totalTraps) {
@@ -277,7 +273,6 @@
             let name = availableTraps[Math.floor(Math.random() * availableTraps.length)];
             return { type: 'trap', name: name };
         } else if (rand < (totalTraps + totalArtifacts)) {
-            // Peschiamo l'artefatto casuale tra quelli disponibili nel mazzo
             let index = Math.floor(Math.random() * availableArtifactsInDeck.length);
             let val = availableArtifactsInDeck[index];
             return { type: 'artifact', value: val, remainder: val };
@@ -287,6 +282,7 @@
         }
     }
 
+    // Aggiorna visivamente l'elenco dei giocatori e le icone del percorso sulla pagina
     function updateUI(highlightId = null) {
         updateInfoText();
         const listContent = document.getElementById('player-list-content');
@@ -304,6 +300,7 @@
         `).join('');
     }
 
+    // Conclude il round, incrementa il contatore e verifica se la partita è finita
     function endRound(msg) {
         updateUI();
         document.getElementById('message').innerText = msg;
@@ -323,4 +320,3 @@
 </script>
 </body>
 </html>
-
