@@ -1,340 +1,315 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diamant</title>
-    <style>
-        :root { --bg: #ffffff; --text: #000000; --border: #333333; --highlight: #eeeeee; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; padding: 20px; }
-        #game-container { max-width: 800px; margin: auto; }
-        .main-controls { border: 3px solid var(--border); padding: 20px; margin-bottom: 20px; background: #f9f9f9; }
-        .setup-box, .info-section, .player-list, #path { border: 2px solid var(--border); padding: 15px; margin-bottom: 20px; }
-        .player-row { border-bottom: 1px solid var(--border); padding: 10px 0; }
-        /* Classe per evidenziare il giocatore di turno */
-        .active-turn { background: var(--highlight); font-weight: bold; border: 2px solid var(--text); padding: 5px; }
-        /* Classe per i giocatori usciti dalla grotta */
-        .out { color: #666666; font-style: italic; }
-        button { padding: 18px 28px; font-size: 1.3rem; cursor: pointer; margin: 10px 5px; border: 2px solid var(--text); background: var(--bg); color: var(--text); font-weight: bold; }
-        button:hover:not(:disabled) { background: var(--text); color: var(--bg); }
-        .hidden { display: none; }
-        #message { font-size: 1.4rem; font-weight: bold; margin-bottom: 20px; white-space: pre-line; outline: none; }
-        .status-buttons-row { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
-        input[type="text"] { font-size: 1.1rem; padding: 8px; margin: 5px 0; width: 80%; border: 1px solid var(--border); }
-        .selection-preview { margin: 15px 0; font-weight: bold; color: #d9534f; font-size: 1.2rem; min-height: 1.5em; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diamant</title>
+    <style>
+        :root { --bg: #ffffff; --text: #000000; --border: #333333; --highlight: #eeeeee; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; padding: 20px; }
+        #game-container { max-width: 800px; margin: auto; }
+        .main-controls { border: 3px solid var(--border); padding: 20px; margin-bottom: 20px; background: #f9f9f9; }
+        .setup-box, .info-section, .player-list, #path { border: 2px solid var(--border); padding: 15px; margin-bottom: 20px; }
+        .player-row { border-bottom: 1px solid var(--border); padding: 10px 0; }
+        .active-turn { background: var(--highlight); font-weight: bold; border: 2px solid var(--text); padding: 5px; }
+        .out { color: #666666; font-style: italic; }
+        button { padding: 18px 28px; font-size: 1.3rem; cursor: pointer; margin: 10px 5px; border: 2px solid var(--text); background: var(--bg); color: var(--text); font-weight: bold; }
+        button:hover:not(:disabled) { background: var(--text); color: var(--bg); }
+        .hidden { display: none; }
+        #message { font-size: 1.4rem; font-weight: bold; margin-bottom: 20px; white-space: pre-line; outline: none; }
+        .status-buttons-row { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
+        input[type="text"] { font-size: 1.1rem; padding: 8px; margin: 5px 0; width: 80%; border: 1px solid var(--border); }
+        .selection-preview { margin: 15px 0; font-weight: bold; color: #d9534f; font-size: 1.2rem; min-height: 1.5em; }
+    </style>
 </head>
 <body>
 
 <div id="game-container" role="main">
-    <h1>Diamant</h1>
+    <h1>Diamant</h1>
 
-    <div id="interaction-zone" class="main-controls hidden">
-        <div id="message" role="alert" aria-live="assertive" tabindex="-1">Benvenuti.</div>
-        
-        <div id="controls">
-            <div id="action-buttons" class="hidden">
-                <button onclick="selectAction('continue', 'VAI AVANTI')">VAI AVANTI</button>
-                <button onclick="selectAction('leave', 'ESCI DALLA GROTTA')">ESCI DALLA GROTTA</button>
-                <div id="selection-text" class="selection-preview"></div>
-                <button id="btn-final-confirm" class="hidden" onclick="confirmDecision()" style="background: #000; color: #fff;">Conferma Scelta</button>
-            </div>
+    <div id="interaction-zone" class="main-controls hidden">
+        <div id="message" role="alert" aria-live="assertive" tabindex="-1">Benvenuti.</div>
+        
+        <div id="controls">
+            <div id="action-buttons" class="hidden">
+                <button onclick="selectAction('continue', 'VAI AVANTI')">VAI AVANTI</button>
+                <button onclick="selectAction('leave', 'ESCI DALLA GROTTA')">ESCI DALLA GROTTA</button>
+                <div id="selection-text" class="selection-preview"></div>
+                <button id="btn-final-confirm" class="hidden" onclick="confirmDecision()" style="background: #000; color: #fff;">Conferma Scelta</button>
+            </div>
 
-            <div id="confirm-container" class="hidden">
-                <button onclick="handleTransition()">Prosegui</button>
-            </div>
+            <div id="confirm-container" class="hidden">
+                <button onclick="handleTransition()">Prosegui</button>
+            </div>
 
-            <div id="pass-device-container" class="hidden">
-                <button onclick="prepareTurnChoices()">Prosegui</button>
-            </div>
+            <div id="pass-device-container" class="hidden">
+                <button onclick="prepareTurnChoices()">Prosegui</button>
+            </div>
 
-            <div id="status-container" class="hidden status-buttons-row">
-                <button onclick="announcePathStatus()">Stato percorso</button>
-                <button onclick="announcePlayersStatus()">Stato giocatori</button>
-            </div>
+            <div id="status-container" class="hidden status-buttons-row">
+                <button onclick="announcePathStatus()">Stato percorso</button>
+                <button onclick="announcePlayersStatus()">Stato giocatori</button>
+            </div>
 
-            <div id="next-round-container" class="hidden">
-                <button onclick="startRound()">INIZIA PROSSIMO ROUND</button>
-            </div>
+            <div id="next-round-container" class="hidden">
+                <button onclick="startRound()">INIZIA PROSSIMO ROUND</button>
+            </div>
 
-            <div id="restart-container" class="hidden">
-                <button onclick="location.reload()">GIOCA ANCORA</button>
-            </div>
-        </div>
-    </div>
+            <div id="restart-container" class="hidden">
+                <button onclick="location.reload()">GIOCA ANCORA</button>
+            </div>
+        </div>
+    </div>
 
-    <div id="setup" class="setup-box">
-        <h2>Configurazione Partita</h2>
-        <label for="player-select">Numero giocatori:</label>
-        <select id="player-select" style="font-size: 1.2rem; padding: 5px;">
-            <option value="3">3</option><option value="4">4</option><option value="5">5</option>
-            <option value="6">6</option><option value="7">7</option><option value="8">8</option>
-        </select>
-        <button onclick="showNameEntry()">Conferma</button>
-    </div>
+    <div id="setup" class="setup-box">
+        <h2>Configurazione Partita</h2>
+        <label for="player-select">Numero giocatori:</label>
+        <select id="player-select" style="font-size: 1.2rem; padding: 5px;">
+            <option value="3">3</option><option value="4">4</option><option value="5">5</option>
+            <option value="6">6</option><option value="7">7</option><option value="8">8</option>
+        </select>
+        <button onclick="showNameEntry()">Conferma</button>
+    </div>
 
-    <div id="name-setup" class="setup-box hidden">
-        <h2>Inserite i nomi</h2>
-        <div id="name-inputs"></div>
-        <button onclick="startGame()">Inizia</button>
-    </div>
+    <div id="name-setup" class="setup-box hidden">
+        <h2>Inserite i nomi</h2>
+        <div id="name-inputs"></div>
+        <button onclick="startGame()">Inizia</button>
+    </div>
 
-    <div id="board" class="hidden">
-        <div class="info-section"><p id="round-status-text"></p></div>
-        <div class="player-list"><h2>Giocatori:</h2><div id="player-list-content"></div></div>
-        <div id="path" role="region"><h2>Percorso:</h2><div id="path-content"></div></div>
-    </div>
+    <div id="board" class="hidden">
+        <div class="info-section"><p id="round-status-text"></p></div>
+        <div class="player-list"><h2>Giocatori:</h2><div id="player-list-content"></div></div>
+        <div id="path" role="region"><h2>Percorso:</h2><div id="path-content"></div></div>
+    </div>
 </div>
 
 <script>
-    // VARIABILI DI STATO: Memorizzano l'andamento della partita
-    let players = [];
-    let currentPlayerIndex = 0;
-    let round = 1;
-    let activeTrapsInRound = [];
-    let currentPath = [];
-    let roundDecisions = [];
-    let pendingDecision = null;
+    let players = [];
+    let currentPlayerIndex = 0;
+    let round = 1;
+    let activeTrapsInRound = [];
+    let currentPath = [];
+    let roundDecisions = [];
+    let pendingDecision = null;
 
-    // CONFIGURAZIONE MAZZO: Valori di tesori, artefatti e quantità trappole
-    const treasureValues = [1, 2, 3, 4, 5, 5, 7, 7, 9, 11, 11, 13, 14, 15, 17];
-    const artifactValues = [5, 7, 8, 10, 12];
-    let trapDeck = { 'Scorpioni': 3, 'Serpenti': 3, 'Fossa di Lava': 3, 'Massi Rotolanti': 3, 'Trappole Acuminate': 3 };
-    let availableArtifactsInDeck = [];
+    const treasureValues = [1, 2, 3, 4, 5, 5, 7, 7, 9, 11, 11, 13, 14, 15, 17];
+    const artifactValues = [5, 7, 8, 10, 12];
+    let trapDeck = { 'Scorpioni': 3, 'Serpenti': 3, 'Fossa di Lava': 3, 'Massi Rotolanti': 3, 'Trappole Acuminate': 3 };
+    let availableArtifactsInDeck = [];
 
-    // Utility per accessibilità (focus sullo schermo)
-    function focusMessage() { document.getElementById('message').focus(); }
+    function focusMessage() { document.getElementById('message').focus(); }
 
-    // BLOCCO SETUP: Genera i campi di testo per i nomi
-    function showNameEntry() {
-        const count = parseInt(document.getElementById('player-select').value);
-        const container = document.getElementById('name-inputs');
-        container.innerHTML = '';
-        for (let i = 1; i <= count; i++) {
-            container.innerHTML += `<input type="text" id="name-p${i}" placeholder="Nome Giocatore ${i}"><br>`;
-        }
-        document.getElementById('setup').classList.add('hidden');
-        document.getElementById('name-setup').classList.remove('hidden');
-    }
+    function showNameEntry() {
+        const count = parseInt(document.getElementById('player-select').value);
+        const container = document.getElementById('name-inputs');
+        container.innerHTML = '';
+        for (let i = 1; i <= count; i++) {
+            container.innerHTML += `<input type="text" id="name-p${i}" placeholder="Nome Giocatore ${i}"><br>`;
+        }
+        document.getElementById('setup').classList.add('hidden');
+        document.getElementById('name-setup').classList.remove('hidden');
+    }
 
-    // BLOCCO AVVIO: Crea gli oggetti giocatore e mostra la board
-    function startGame() {
-        const count = parseInt(document.getElementById('player-select').value);
-        for (let i = 1; i <= count; i++) {
-            let name = document.getElementById(`name-p${i}`).value.trim();
-            players.push({ id: i, name: name || `Giocatore ${i}`, chest: 0, pocket: 0, inCave: true });
-        }
-        document.getElementById('name-setup').classList.add('hidden');
-        document.getElementById('interaction-zone').classList.remove('hidden');
-        document.getElementById('board').classList.remove('hidden');
-        startRound();
-    }
+    function startGame() {
+        const count = parseInt(document.getElementById('player-select').value);
+        for (let i = 1; i <= count; i++) {
+            let name = document.getElementById(`name-p${i}`).value.trim();
+            players.push({ id: i, name: name || `Giocatore ${i}`, chest: 0, pocket: 0, inCave: true });
+        }
+        document.getElementById('name-setup').classList.add('hidden');
+        document.getElementById('interaction-zone').classList.remove('hidden');
+        document.getElementById('board').classList.remove('hidden');
+        startRound();
+    }
 
-    // BLOCCO ROUND: Inizializza un nuovo round (1 di 5) e pesca la prima carta automatica
-    function startRound() {
-        if (round > 5) return;
-        activeTrapsInRound = [];
-        currentPath = [];
-        roundDecisions = [];
-        players.forEach(p => { p.pocket = 0; p.inCave = true; });
-        availableArtifactsInDeck.push(artifactValues[round-1]);
-        document.getElementById('path-content').innerHTML = '';
-        document.getElementById('next-round-container').classList.add('hidden');
-        document.getElementById('status-container').classList.remove('hidden');
-        updateInfoText();
-        executeTurnLogic(); // La prima carta di ogni corridoio viene estratta senza votazione
-    }
+    function startRound() {
+        if (round > 5) return;
+        activeTrapsInRound = [];
+        currentPath = [];
+        roundDecisions = [];
+        players.forEach(p => { p.pocket = 0; p.inCave = true; });
+        availableArtifactsInDeck.push(artifactValues[round-1]);
+        document.getElementById('path-content').innerHTML = '';
+        document.getElementById('next-round-container').classList.add('hidden');
+        document.getElementById('status-container').classList.remove('hidden');
+        updateInfoText();
+        executeTurnLogic();
+    }
 
-    // BLOCCO UI: Aggiorna il testo del round e giocatori attivi
-    function updateInfoText() {
-        const activeCount = players.filter(p => p.inCave).length;
-        document.getElementById('round-status-text').innerText = `Round: ${round}/5. Esploratori: ${activeCount}.`;
-    }
+    function updateInfoText() {
+        const activeCount = players.filter(p => p.inCave).length;
+        document.getElementById('round-status-text').innerText = `Round: ${round}/5. Esploratori: ${activeCount}.`;
+    }
 
-    // BLOCCO TRANSIZIONE: Chiede di passare il dispositivo per la votazione segreta
-    function handleTransition() {
-        document.getElementById('confirm-container').classList.add('hidden');
-        document.getElementById('status-container').classList.add('hidden');
-        document.getElementById('message').innerText = "Ora passatevi il dispositivo e votate in segreto.";
-        document.getElementById('pass-device-container').classList.remove('hidden');
-        focusMessage();
-    }
+    function handleTransition() {
+        document.getElementById('confirm-container').classList.add('hidden');
+        document.getElementById('status-container').classList.add('hidden');
+        document.getElementById('message').innerText = "Ora passatevi il dispositivo e votate in segreto.";
+        document.getElementById('pass-device-container').classList.remove('hidden');
+        focusMessage();
+    }
 
-    // BLOCCO VOTAZIONE: Gestisce il turno di ogni singolo giocatore attivo
-    function prepareTurnChoices() {
-        document.getElementById('pass-device-container').classList.add('hidden');
-        document.getElementById('action-buttons').classList.remove('hidden');
-        document.getElementById('status-container').classList.remove('hidden');
-        document.getElementById('selection-text').innerText = "";
-        document.getElementById('btn-final-confirm').classList.add('hidden');
-        roundDecisions = [];
-        currentPlayerIndex = 0;
-        findNextActivePlayer();
-    }
+    function prepareTurnChoices() {
+        document.getElementById('pass-device-container').classList.add('hidden');
+        document.getElementById('action-buttons').classList.remove('hidden');
+        document.getElementById('status-container').classList.remove('hidden');
+        document.getElementById('selection-text').innerText = "";
+        document.getElementById('btn-final-confirm').classList.add('hidden');
+        roundDecisions = [];
+        currentPlayerIndex = 0;
+        findNextActivePlayer();
+    }
 
-    function findNextActivePlayer() {
-        while (currentPlayerIndex < players.length && !players[currentPlayerIndex].inCave) {
-            currentPlayerIndex++;
-        }
-        if (currentPlayerIndex < players.length) {
-            updateUI(players[currentPlayerIndex].id);
-            document.getElementById('message').innerText = `${players[currentPlayerIndex].name}, effettua la tua scelta:`;
-            focusMessage();
-        } else {
-            executeTurnLogic(); // Una volta votato tutti, si passa alla risoluzione
-        }
-    }
+    function findNextActivePlayer() {
+        while (currentPlayerIndex < players.length && !players[currentPlayerIndex].inCave) {
+            currentPlayerIndex++;
+        }
+        if (currentPlayerIndex < players.length) {
+            updateUI(players[currentPlayerIndex].id);
+            document.getElementById('message').innerText = `${players[currentPlayerIndex].name}, effettua la tua scelta:`;
+            focusMessage();
+        } else {
+            executeTurnLogic();
+        }
+    }
 
-    // BLOCCO SELEZIONE: Permette di cambiare idea tra Avanti/Esci prima della conferma
-    function selectAction(action, label) {
-        pendingDecision = action;
-        document.getElementById('selection-text').innerText = `Stai selezionando: "${label}"`;
-        document.getElementById('btn-final-confirm').classList.remove('hidden');
-    }
+    function selectAction(action, label) {
+        pendingDecision = action;
+        document.getElementById('selection-text').innerText = `Stai selezionando: "${label}"`;
+        document.getElementById('btn-final-confirm').classList.remove('hidden');
+    }
 
-    // BLOCCO CONFERMA: Registra la scelta finale e passa al prossimo giocatore
-    function confirmDecision() {
-        document.getElementById('btn-final-confirm').classList.add('hidden');
-        document.getElementById('selection-text').innerText = "";
-        roundDecisions.push({ playerId: players[currentPlayerIndex].id, action: pendingDecision });
-        pendingDecision = null;
-        currentPlayerIndex++;
-        findNextActivePlayer();
-    }
+    function confirmDecision() {
+        document.getElementById('btn-final-confirm').classList.add('hidden');
+        document.getElementById('selection-text').innerText = "";
+        roundDecisions.push({ playerId: players[currentPlayerIndex].id, action: pendingDecision });
+        pendingDecision = null;
+        currentPlayerIndex++;
+        findNextActivePlayer();
+    }
 
-    // BLOCCO LOGICA CORE: Gestisce spartizione rubini, chi esce e le trappole
-    function executeTurnLogic() {
-        document.getElementById('action-buttons').classList.add('hidden');
-        
-        // Risoluzione uscite: chi torna al campo raccoglie i resti sulle carte
-        if (roundDecisions.length > 0) {
-            let leavingPlayers = players.filter(p => p.inCave && roundDecisions.find(d => d.playerId === p.id).action === 'leave');
-            if (leavingPlayers.length > 0) {
-                currentPath.forEach(card => {
-                    if (card.type === 'treasure' && card.remainder > 0) {
-                        let share = Math.floor(card.remainder / leavingPlayers.length);
-                        leavingPlayers.forEach(p => p.pocket += share);
-                        card.remainder %= leavingPlayers.length;
-                    }
-                    if (card.type === 'artifact' && card.remainder > 0 && leavingPlayers.length === 1) {
-                        leavingPlayers[0].pocket += card.remainder;
-                        card.remainder = 0;
-                    }
-                });
-                // I rubini in tasca vengono messi nel baule e il giocatore esce
-                leavingPlayers.forEach(p => { p.chest += p.pocket; p.pocket = 0; p.inCave = false; });
-            }
-        }
+    function executeTurnLogic() {
+        document.getElementById('action-buttons').classList.add('hidden');
+        
+        if (roundDecisions.length > 0) {
+            let leavingPlayers = players.filter(p => p.inCave && roundDecisions.find(d => d.playerId === p.id).action === 'leave');
+            if (leavingPlayers.length > 0) {
+                currentPath.forEach(card => {
+                    if (card.type === 'treasure' && card.remainder > 0) {
+                        let share = Math.floor(card.remainder / leavingPlayers.length);
+                        leavingPlayers.forEach(p => p.pocket += share);
+                        card.remainder %= leavingPlayers.length;
+                    }
+                    if (card.type === 'artifact' && card.remainder > 0 && leavingPlayers.length === 1) {
+                        leavingPlayers[0].pocket += card.remainder;
+                        card.remainder = 0;
+                    }
+                });
+                leavingPlayers.forEach(p => { p.chest += p.pocket; p.pocket = 0; p.inCave = false; });
+            }
+        }
 
-        // Se non c'è più nessuno in grotta, il round finisce
-        if (players.every(p => !p.inCave)) {
-            endRound(`Round ${round} concluso.`);
-            return;
-        }
+        if (players.every(p => !p.inCave)) {
+            endRound(`Round ${round} concluso.`);
+            return;
+        }
 
-        // Estrazione carta dal mazzo e risoluzione effetti
-        const card = drawCard();
-        currentPath.push(card);
-        let stayingPlayers = players.filter(p => p.inCave);
+        const card = drawCard();
+        currentPath.push(card);
+        let stayingPlayers = players.filter(p => p.inCave);
 
-        if (card.type === 'treasure') {
-            let share = Math.floor(card.value / stayingPlayers.length);
-            card.remainder = card.value % stayingPlayers.length;
-            stayingPlayers.forEach(p => p.pocket += share);
-            document.getElementById('message').innerText = `Tesoro ${card.value}. +${share} in Tasca. Restano sulla carta: ${card.remainder}.`;
-        } else if (card.type === 'artifact') {
-            card.remainder = card.value;
-            availableArtifactsInDeck = availableArtifactsInDeck.filter(v => v !== card.value);
-            document.getElementById('message').innerText = `Artefatto trovato (Valore: ${card.value}).`;
-        } else {
-            // Se la trappola è doppia, i giocatori perdono tutto e il round finisce
-            if (activeTrapsInRound.includes(card.name)) {
-                trapDeck[card.name] -= 1;
-                stayingPlayers.forEach(p => p.pocket = 0);
-                endRound(`TRAPPOLA: ${card.name}! Round finito.`);
-                return;
-            } else {
-                activeTrapsInRound.push(card.name);
-                document.getElementById('message').innerText = `Pericolo: ${card.name}.`;
-            }
-        }
+        if (card.type === 'treasure') {
+            let share = Math.floor(card.value / stayingPlayers.length);
+            card.remainder = card.value % stayingPlayers.length;
+            stayingPlayers.forEach(p => p.pocket += share);
+            document.getElementById('message').innerText = `Tesoro ${card.value}. +${share} in Tasca. Restano sulla carta: ${card.remainder}.`;
+        } else if (card.type === 'artifact') {
+            card.remainder = card.value;
+            availableArtifactsInDeck = availableArtifactsInDeck.filter(v => v !== card.value);
+            document.getElementById('message').innerText = `Artefatto trovato (Valore: ${card.value}).`;
+        } else {
+            if (activeTrapsInRound.includes(card.name)) {
+                trapDeck[card.name] -= 1;
+                stayingPlayers.forEach(p => p.pocket = 0);
+                endRound(`TRAPPOLA: ${card.name}! Round finito.`);
+                return;
+            } else {
+                activeTrapsInRound.push(card.name);
+                document.getElementById('message').innerText = `Pericolo: ${card.name}.`;
+            }
+        }
 
-        updateUI();
-        document.getElementById('confirm-container').classList.remove('hidden');
-        focusMessage();
-    }
+        updateUI();
+        document.getElementById('confirm-container').classList.remove('hidden');
+        focusMessage();
+    }
 
-    // BLOCCO STATO PERCORSO: Mostra il contenuto delle carte giocate
-    function announcePathStatus() {
-        let statusText = currentPath.length === 0 ? "Percorso vuoto.\n" : "Stato Percorso:\n";
-        currentPath.forEach((card, i) => {
-            let info = (card.type === 'treasure') ? `Rubini rimasti: ${card.remainder}` : (card.type === 'artifact' ? `Artefatto (${card.remainder} pt)` : `Pericolo: ${card.name}`);
-            statusText += `${i+1}. ${info}\n`;
-        });
-        document.getElementById('message').innerText = statusText;
-        focusMessage();
-    }
+    function announcePathStatus() {
+        let statusText = currentPath.length === 0 ? "Percorso vuoto.\n" : "Stato Percorso:\n";
+        currentPath.forEach((card, i) => {
+            let info = (card.type === 'treasure') ? `Rubini rimasti: ${card.remainder}` : (card.type === 'artifact' ? `Artefatto (${card.remainder} pt)` : `Pericolo: ${card.name}`);
+            statusText += `${i+1}. ${info}\n`;
+        });
+        document.getElementById('message').innerText = statusText;
+        focusMessage();
+    }
 
-    // BLOCCO STATO GIOCATORI: Mostra rubini accumulati (Tasca e Baule)
-    function announcePlayersStatus() {
-        let statusText = "Stato Giocatori:\n";
-        players.forEach(p => statusText += `${p.name}: Tasca ${p.pocket}, Baule ${p.chest}\n`);
-        document.getElementById('message').innerText = statusText;
-        focusMessage();
-    }
+    function announcePlayersStatus() {
+        let statusText = "Stato Giocatori:\n";
+        players.forEach(p => statusText += `${p.name}: Tasca ${p.pocket}, Baule ${p.chest}\n`);
+        document.getElementById('message').innerText = statusText;
+        focusMessage();
+    }
 
-    // BLOCCO ESTRAZIONE: Calcola le probabilità e pesca una carta casuale dal mazzo residuo
-    function drawCard() {
-        let totalTraps = Object.values(trapDeck).reduce((a, b) => a + b, 0);
-        let totalArtifacts = availableArtifactsInDeck.length;
-        let totalCards = treasureValues.length + totalTraps + totalArtifacts;
-        let rand = Math.random() * totalCards;
-        if (rand < totalTraps) {
-            let traps = [];
-            for (let t in trapDeck) for(let i=0; i<trapDeck[t]; i++) traps.push(t);
-            return { type: 'trap', name: traps[Math.floor(Math.random() * traps.length)] };
-        } else if (rand < (totalTraps + totalArtifacts)) {
-            let val = availableArtifactsInDeck[Math.floor(Math.random() * availableArtifactsInDeck.length)];
-            return { type: 'artifact', value: val, remainder: val };
-        } else {
-            return { type: 'treasure', value: treasureValues[Math.floor(Math.random() * treasureValues.length)], remainder: 0 };
-        }
-    }
+    function drawCard() {
+        let totalTraps = Object.values(trapDeck).reduce((a, b) => a + b, 0);
+        let totalArtifacts = availableArtifactsInDeck.length;
+        let totalCards = treasureValues.length + totalTraps + totalArtifacts;
+        let rand = Math.random() * totalCards;
+        if (rand < totalTraps) {
+            let traps = [];
+            for (let t in trapDeck) for(let i=0; i<trapDeck[t]; i++) traps.push(t);
+            return { type: 'trap', name: traps[Math.floor(Math.random() * traps.length)] };
+        } else if (rand < (totalTraps + totalArtifacts)) {
+            let val = availableArtifactsInDeck[Math.floor(Math.random() * availableArtifactsInDeck.length)];
+            return { type: 'artifact', value: val, remainder: val };
+        } else {
+            return { type: 'treasure', value: treasureValues[Math.floor(Math.random() * treasureValues.length)], remainder: 0 };
+        }
+    }
 
-    // BLOCCO AGGIORNAMENTO UI: Ridisegna la lista giocatori e le icone del percorso
-    function updateUI(highlightId = null) {
-        updateInfoText();
-        document.getElementById('player-list-content').innerHTML = players.map(p => `
-            <div class="player-row ${p.id === highlightId ? 'active-turn' : ''} ${!p.inCave ? 'out' : ''}">
-                ${p.name} - Tasca: ${p.pocket}, Baule: ${p.chest}
-            </div>
-        `).join('');
-        document.getElementById('path-content').innerHTML = currentPath.map(card => `
-            <div style="border: 2px solid black; padding: 10px; margin: 5px; display: inline-block;">
-                ${card.type === 'treasure' ? 'Rubini rimasti: ' + card.remainder : (card.type === 'artifact' ? 'Artefatto: ' + card.remainder : card.name)}
-            </div>
-        `).join('');
-    }
+    function updateUI(highlightId = null) {
+        updateInfoText();
+        document.getElementById('player-list-content').innerHTML = players.map(p => `
+            <div class="player-row ${p.id === highlightId ? 'active-turn' : ''} ${!p.inCave ? 'out' : ''}">
+                ${p.name} - Tasca: ${p.pocket}, Baule: ${p.chest}
+            </div>
+        `).join('');
+        document.getElementById('path-content').innerHTML = currentPath.map(card => `
+            <div style="border: 2px solid black; padding: 10px; margin: 5px; display: inline-block;">
+                ${card.type === 'treasure' ? 'Rubini rimasti: ' + card.remainder : (card.type === 'artifact' ? 'Artefatto: ' + card.remainder : card.name)}
+            </div>
+        `).join('');
+    }
 
-    // BLOCCO FINE ROUND: Gestisce il passaggio al round successivo o decreta il vincitore
-    function endRound(msg) {
-        updateUI();
-        roundDecisions = [];
-        document.getElementById('message').innerText = msg;
-        document.getElementById('action-buttons').classList.add('hidden');
-        document.getElementById('confirm-container').classList.add('hidden');
-        document.getElementById('pass-device-container').classList.add('hidden');
-        document.getElementById('status-container').classList.add('hidden');
-        round++;
-        if (round > 5) {
-            // Ordina i giocatori per valore nel baule per determinare il vincitore
-            players.sort((a,b) => b.chest - a.chest);
-            document.getElementById('message').innerText += `\nVince ${players[0].name} con ${players[0].chest} nel baule.`;
-            document.getElementById('restart-container').classList.remove('hidden');
-        } else {
-            document.getElementById('next-round-container').classList.remove('hidden');
-        }
-    }
+    function endRound(msg) {
+        updateUI();
+        roundDecisions = [];
+        document.getElementById('message').innerText = msg;
+        document.getElementById('action-buttons').classList.add('hidden');
+        document.getElementById('confirm-container').classList.add('hidden');
+        document.getElementById('pass-device-container').classList.add('hidden');
+        document.getElementById('status-container').classList.add('hidden');
+        round++;
+        if (round > 5) {
+            players.sort((a,b) => b.chest - a.chest);
+            document.getElementById('message').innerText += `\nVince ${players[0].name} con ${players[0].chest} nel baule.`;
+            document.getElementById('restart-container').classList.remove('hidden');
+        } else {
+            document.getElementById('next-round-container').classList.remove('hidden');
+        }
+    }
 </script>
 </body>
 </html>
