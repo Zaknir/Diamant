@@ -46,6 +46,10 @@
                 <button onclick="prepareTurnChoices()">Prosegui</button>
             </div>
 
+            <div id="summary-container" class="hidden">
+                <button onclick="executeTurnLogic()">Prosegui</button>
+            </div>
+
             <div id="status-container" class="hidden status-buttons-row">
                 <button onclick="announcePathStatus()">Stato percorso</button>
                 <button onclick="announcePlayersStatus()">Stato giocatori</button>
@@ -170,8 +174,21 @@
             document.getElementById('message').innerText = `${players[currentPlayerIndex].name}, effettua la tua scelta:`;
             focusMessage();
         } else {
-            executeTurnLogic();
+            showDecisionSummary();
         }
+    }
+
+    function showDecisionSummary() {
+        document.getElementById('action-buttons').classList.add('hidden');
+        let summary = "Riepilogo Scelte:\n";
+        roundDecisions.forEach(d => {
+            const p = players.find(player => player.id === d.playerId);
+            const actionLabel = d.action === 'continue' ? "VAI AVANTI" : "ESCI DALLA GROTTA";
+            summary += `${p.name}: ${actionLabel}\n`;
+        });
+        document.getElementById('message').innerText = summary;
+        document.getElementById('summary-container').classList.remove('hidden');
+        focusMessage();
     }
 
     function selectAction(action, label) {
@@ -190,7 +207,7 @@
     }
 
     function executeTurnLogic() {
-        document.getElementById('action-buttons').classList.add('hidden');
+        document.getElementById('summary-container').classList.add('hidden');
         
         if (roundDecisions.length > 0) {
             let leavingPlayers = players.filter(p => p.inCave && roundDecisions.find(d => d.playerId === p.id).action === 'leave');
@@ -300,6 +317,7 @@
         document.getElementById('action-buttons').classList.add('hidden');
         document.getElementById('confirm-container').classList.add('hidden');
         document.getElementById('pass-device-container').classList.add('hidden');
+        document.getElementById('summary-container').classList.add('hidden');
         document.getElementById('status-container').classList.add('hidden');
         round++;
         if (round > 5) {
