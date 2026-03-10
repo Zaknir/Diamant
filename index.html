@@ -11,9 +11,7 @@
         .main-controls { border: 3px solid var(--border); padding: 20px; margin-bottom: 20px; background: #f9f9f9; }
         .setup-box, .info-section, .player-list, #path { border: 2px solid var(--border); padding: 15px; margin-bottom: 20px; }
         .player-row { border-bottom: 1px solid var(--border); padding: 10px 0; }
-        /* Classe per evidenziare il giocatore di turno */
         .active-turn { background: var(--highlight); font-weight: bold; border: 2px solid var(--text); padding: 5px; }
-        /* Classe per i giocatori usciti dalla grotta */
         .out { color: #666666; font-style: italic; }
         button { padding: 18px 28px; font-size: 1.3rem; cursor: pointer; margin: 10px 5px; border: 2px solid var(--text); background: var(--bg); color: var(--text); font-weight: bold; }
         button:hover:not(:disabled) { background: var(--text); color: var(--bg); }
@@ -87,7 +85,6 @@
 </div>
 
 <script>
-    // VARIABILI DI STATO: Memorizzano l'andamento della partita
     let players = [];
     let currentPlayerIndex = 0;
     let round = 1;
@@ -96,16 +93,13 @@
     let roundDecisions = [];
     let pendingDecision = null;
 
-    // CONFIGURAZIONE MAZZO: Valori di tesori, artefatti e quantità trappole
     const treasureValues = [1, 2, 3, 4, 5, 5, 7, 7, 9, 11, 11, 13, 14, 15, 17];
     const artifactValues = [5, 7, 8, 10, 12];
     let trapDeck = { 'Scorpioni': 3, 'Serpenti': 3, 'Fossa di Lava': 3, 'Massi Rotolanti': 3, 'Trappole Acuminate': 3 };
     let availableArtifactsInDeck = [];
 
-    // Utility per accessibilità (focus sullo schermo)
     function focusMessage() { document.getElementById('message').focus(); }
 
-    // BLOCCO SETUP: Genera i campi di testo per i nomi
     function showNameEntry() {
         const count = parseInt(document.getElementById('player-select').value);
         const container = document.getElementById('name-inputs');
@@ -117,7 +111,6 @@
         document.getElementById('name-setup').classList.remove('hidden');
     }
 
-    // BLOCCO AVVIO: Crea gli oggetti giocatore e mostra la board
     function startGame() {
         const count = parseInt(document.getElementById('player-select').value);
         for (let i = 1; i <= count; i++) {
@@ -130,7 +123,6 @@
         startRound();
     }
 
-    // BLOCCO ROUND: Inizializza un nuovo round (1 di 5) e pesca la prima carta automatica
     function startRound() {
         if (round > 5) return;
         activeTrapsInRound = [];
@@ -142,16 +134,14 @@
         document.getElementById('next-round-container').classList.add('hidden');
         document.getElementById('status-container').classList.remove('hidden');
         updateInfoText();
-        executeTurnLogic(); // La prima carta di ogni corridoio viene estratta senza votazione
+        executeTurnLogic();
     }
 
-    // BLOCCO UI: Aggiorna il testo del round e giocatori attivi
     function updateInfoText() {
         const activeCount = players.filter(p => p.inCave).length;
         document.getElementById('round-status-text').innerText = `Round: ${round}/5. Esploratori: ${activeCount}.`;
     }
 
-    // BLOCCO TRANSIZIONE: Chiede di passare il dispositivo per la votazione segreta
     function handleTransition() {
         document.getElementById('confirm-container').classList.add('hidden');
         document.getElementById('status-container').classList.add('hidden');
@@ -160,7 +150,6 @@
         focusMessage();
     }
 
-    // BLOCCO VOTAZIONE: Gestisce il turno di ogni singolo giocatore attivo
     function prepareTurnChoices() {
         document.getElementById('pass-device-container').classList.add('hidden');
         document.getElementById('action-buttons').classList.remove('hidden');
@@ -181,18 +170,16 @@
             document.getElementById('message').innerText = `${players[currentPlayerIndex].name}, effettua la tua scelta:`;
             focusMessage();
         } else {
-            executeTurnLogic(); // Una volta votato tutti, si passa alla risoluzione
+            executeTurnLogic();
         }
     }
 
-    // BLOCCO SELEZIONE: Permette di cambiare idea tra Avanti/Esci prima della conferma
     function selectAction(action, label) {
         pendingDecision = action;
         document.getElementById('selection-text').innerText = `Stai selezionando: "${label}"`;
         document.getElementById('btn-final-confirm').classList.remove('hidden');
     }
 
-    // BLOCCO CONFERMA: Registra la scelta finale e passa al prossimo giocatore
     function confirmDecision() {
         document.getElementById('btn-final-confirm').classList.add('hidden');
         document.getElementById('selection-text').innerText = "";
@@ -202,11 +189,9 @@
         findNextActivePlayer();
     }
 
-    // BLOCCO LOGICA CORE: Gestisce spartizione rubini, chi esce e le trappole
     function executeTurnLogic() {
         document.getElementById('action-buttons').classList.add('hidden');
         
-        // Risoluzione uscite: chi torna al campo raccoglie i resti sulle carte
         if (roundDecisions.length > 0) {
             let leavingPlayers = players.filter(p => p.inCave && roundDecisions.find(d => d.playerId === p.id).action === 'leave');
             if (leavingPlayers.length > 0) {
@@ -221,18 +206,15 @@
                         card.remainder = 0;
                     }
                 });
-                // I rubini in tasca vengono messi nel baule e il giocatore esce
                 leavingPlayers.forEach(p => { p.chest += p.pocket; p.pocket = 0; p.inCave = false; });
             }
         }
 
-        // Se non c'è più nessuno in grotta, il round finisce
         if (players.every(p => !p.inCave)) {
             endRound(`Round ${round} concluso.`);
             return;
         }
 
-        // Estrazione carta dal mazzo e risoluzione effetti
         const card = drawCard();
         currentPath.push(card);
         let stayingPlayers = players.filter(p => p.inCave);
@@ -247,7 +229,6 @@
             availableArtifactsInDeck = availableArtifactsInDeck.filter(v => v !== card.value);
             document.getElementById('message').innerText = `Artefatto trovato (Valore: ${card.value}).`;
         } else {
-            // Se la trappola è doppia, i giocatori perdono tutto e il round finisce
             if (activeTrapsInRound.includes(card.name)) {
                 trapDeck[card.name] -= 1;
                 stayingPlayers.forEach(p => p.pocket = 0);
@@ -264,7 +245,6 @@
         focusMessage();
     }
 
-    // BLOCCO STATO PERCORSO: Mostra il contenuto delle carte giocate
     function announcePathStatus() {
         let statusText = currentPath.length === 0 ? "Percorso vuoto.\n" : "Situazione Percorso:\n";
         currentPath.forEach((card, i) => {
@@ -275,15 +255,13 @@
         focusMessage();
     }
 
-    // BLOCCO STATO GIOCATORI: Mostra rubini accumulati (Tasca e Baule)
     function announcePlayersStatus() {
-        let statusText = "Riserve:\n";
+        let statusText = "Punti:\n";
         players.forEach(p => statusText += `${p.name}: Tasca ${p.pocket}, Baule ${p.chest}\n`);
         document.getElementById('message').innerText = statusText;
         focusMessage();
     }
 
-    // BLOCCO ESTRAZIONE: Calcola le probabilità e pesca una carta casuale dal mazzo residuo
     function drawCard() {
         let totalTraps = Object.values(trapDeck).reduce((a, b) => a + b, 0);
         let totalArtifacts = availableArtifactsInDeck.length;
@@ -301,7 +279,6 @@
         }
     }
 
-    // BLOCCO AGGIORNAMENTO UI: Ridisegna la lista giocatori e le icone del percorso
     function updateUI(highlightId = null) {
         updateInfoText();
         document.getElementById('player-list-content').innerHTML = players.map(p => `
@@ -316,7 +293,6 @@
         `).join('');
     }
 
-    // BLOCCO FINE ROUND: Gestisce il passaggio al round successivo o decreta il vincitore
     function endRound(msg) {
         updateUI();
         roundDecisions = [];
@@ -327,7 +303,6 @@
         document.getElementById('status-container').classList.add('hidden');
         round++;
         if (round > 5) {
-            // Ordina i giocatori per valore nel baule per determinare il vincitore
             players.sort((a,b) => b.chest - a.chest);
             document.getElementById('message').innerText += `\nVince ${players[0].name} con ${players[0].chest} nel baule.`;
             document.getElementById('restart-container').classList.remove('hidden');
